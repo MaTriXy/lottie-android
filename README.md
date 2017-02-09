@@ -24,6 +24,7 @@ All of these animations were created in After Effects, exported with Bodymovin, 
 [Bodymovin](https://github.com/bodymovin/bodymovin) is an After Effects plugin created by Hernan Torrisi that exports After effects files as json and includes a javascript web player. We've built on top of his great work to extend its usage to Android, iOS, and React Native.
 
 Read more about it on our [blog post](http://airbnb.design/introducing-lottie/)
+Or get in touch on Twitter ([gpeal8](https://twitter.com/gpeal8)) or via lottie@airbnb.com
 
 ## Sample App
 
@@ -36,7 +37,7 @@ Gradle is the only supported build configuration, so just add the dependency to 
 
 ```groovy
 dependencies {  
-  compile 'com.airbnb.android:lottie:1.0.0'
+  compile 'com.airbnb.android:lottie:1.0.1'
 }
 ```
 
@@ -54,7 +55,7 @@ The simplest way to use it is with LottieAnimationView:
         app:lottie_autoPlay="true" />
 ```
 
-Or you can load it programatically in multiple ways.
+Or you can load it programmatically in multiple ways.
 From a json asset in app/src/main/assets:
 ```java
 LottieAnimationView animationView = (LottieAnimationView) findViewById(R.id.animation_view);
@@ -98,7 +99,7 @@ animationView.cancelAnimation();
 ```
 
 
-Under the hood, `LottieAnimationView` uses `LottieDrawable` to render its animations. If you need to, you can use the the drawable form directly:
+Under the hood, `LottieAnimationView` uses `LottieDrawable` to render its animations. If you need to, you can use the drawable form directly:
 ```java
 LottieDrawable drawable = new LottieDrawable();
 LottieComposition.fromAssetFileName(getContext(), "hello-world.json", (composition) -> {
@@ -182,7 +183,7 @@ If your animation will be frequently reused, `LottieAnimationView` has an option
 
 * Rectangle (All properties)
 
-* Elipse (All properties)
+* Ellipse (All properties)
 
 * Multiple paths in one group
 
@@ -224,14 +225,15 @@ If your animation will be frequently reused, `LottieAnimationView` has an option
 4. If you are using your animation in a list, it is recommended to use a CacheStrategy in LottieAnimationView.setAnimation(String, CacheStrategy) so the animations do not have to be deserialized every time.
 
 ## Try it out
-Clone this repository and run the LottieSample module to see a bunch of sample animations. The JSON files for them are located in [LottieSample/src/main/assets](https://github.com/airbnb/lottie-android/tree/master/LottieSample/src/main/assets) and the orignal After Effects files are located in [/After Effects Samples](https://github.com/airbnb/lottie-android/tree/master/After%20Effects%20Samples)
+Clone this repository and run the LottieSample module to see a bunch of sample animations. The JSON files for them are located in [LottieSample/src/main/assets](https://github.com/airbnb/lottie-android/tree/master/LottieSample/src/main/assets) and the original After Effects files are located in [/After Effects Samples](https://github.com/airbnb/lottie-android/tree/master/After%20Effects%20Samples)
 
 The sample app can also load json files at a given url or locally on your device (like Downloads or on your sdcard).
 
 ## Community Contributions
  * [Xamarin bindings](https://github.com/martijn00/LottieXamarin)
  * [NativeScript bindings](https://github.com/bradmartin/nativescript-lottie)
-
+ * [Appcelerator Titanium bindings](https://github.com/m1ga/ti.animation)
+ 
 ## Alternatives
 1. Build animations by hand. Building animations by hand is a huge time commitment for design and engineering across Android and iOS. It's often hard or even impossible to justify spending so much time to get an animation right.
 2. [Facebook Keyframes](https://github.com/facebookincubator/Keyframes). Keyframes is a wonderful new library from Facebook that they built for reactions. However, Keyframes doesn't support some of Lottie's features such as masks, mattes, trim paths, dash patterns, and more.

@@ -13,7 +13,7 @@ import android.view.inputmethod.InputConnection;
 import android.widget.FrameLayout;
 
 import com.airbnb.lottie.LottieAnimationView;
-import com.airbnb.lottie.model.LottieComposition;
+import com.airbnb.lottie.LottieComposition;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -21,7 +21,6 @@ import java.util.List;
 import java.util.Map;
 
 public class LottieFontViewGroup extends FrameLayout {
-
   private final Map<String, LottieComposition> compositionMap = new HashMap<>();
   private final List<View> views = new ArrayList<>();
 
@@ -44,20 +43,21 @@ public class LottieFontViewGroup extends FrameLayout {
 
   private void init() {
     setFocusableInTouchMode(true);
-    LottieComposition.fromAssetFileName(getContext(), "Mobilo/BlinkingCursor.json", new LottieComposition.OnCompositionLoadedListener() {
-      @Override
-      public void onCompositionLoaded(LottieComposition composition) {
-        cursorView = new LottieAnimationView(getContext());
-        cursorView.setLayoutParams(new LottieFontViewGroup.LayoutParams(
-            ViewGroup.LayoutParams.WRAP_CONTENT,
-            ViewGroup.LayoutParams.WRAP_CONTENT
-        ));
-        cursorView.setComposition(composition);
-        cursorView.loop(true);
-        cursorView.playAnimation();
-        addView(cursorView);
-      }
-    });
+    LottieComposition.fromAssetFileName(getContext(), "Mobilo/BlinkingCursor.json",
+        new LottieComposition.OnCompositionLoadedListener() {
+          @Override
+          public void onCompositionLoaded(LottieComposition composition) {
+            cursorView = new LottieAnimationView(getContext());
+            cursorView.setLayoutParams(new LottieFontViewGroup.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT
+            ));
+            cursorView.setComposition(composition);
+            cursorView.loop(true);
+            cursorView.playAnimation();
+            addView(cursorView);
+          }
+        });
   }
 
   private void addSpace() {
@@ -105,7 +105,8 @@ public class LottieFontViewGroup extends FrameLayout {
       currentX += view.getWidth();
     }
 
-    setMeasuredDimension(getMeasuredWidth(), currentY + views.get(views.size() - 1).getMeasuredHeight() * 2);
+    setMeasuredDimension(getMeasuredWidth(),
+        currentY + views.get(views.size() - 1).getMeasuredHeight() * 2);
   }
 
   @Override
@@ -125,7 +126,8 @@ public class LottieFontViewGroup extends FrameLayout {
         currentX = getPaddingLeft();
         currentY += view.getMeasuredHeight();
       }
-      view.layout(currentX, currentY, currentX + view.getMeasuredWidth(), currentY + view.getMeasuredHeight());
+      view.layout(currentX, currentY, currentX + view.getMeasuredWidth(),
+          currentY + view.getMeasuredHeight());
       currentX += view.getWidth();
     }
   }
@@ -156,7 +158,7 @@ public class LottieFontViewGroup extends FrameLayout {
       return true;
     }
 
-    if (!isValidKey(keyCode)) {
+    if (!isValidKey(event)) {
       return super.onKeyUp(keyCode, event);
     }
 
@@ -178,20 +180,24 @@ public class LottieFontViewGroup extends FrameLayout {
     if (compositionMap.containsKey(fileName)) {
       addComposition(compositionMap.get(fileName));
     } else {
-      LottieComposition.fromAssetFileName(getContext(), fileName, new LottieComposition.OnCompositionLoadedListener() {
-        @Override
-        public void onCompositionLoaded(LottieComposition composition) {
-          compositionMap.put(fileName, composition);
-          addComposition(composition);
-        }
-      });
+      LottieComposition.fromAssetFileName(getContext(), fileName,
+          new LottieComposition.OnCompositionLoadedListener() {
+            @Override
+            public void onCompositionLoaded(LottieComposition composition) {
+              compositionMap.put(fileName, composition);
+              addComposition(composition);
+            }
+          });
     }
 
     return true;
   }
 
-  private boolean isValidKey(int keyCode) {
-    if (keyCode >= KeyEvent.KEYCODE_A && keyCode <= KeyEvent.KEYCODE_Z) {
+  private boolean isValidKey(KeyEvent event) {
+    if (!event.hasNoModifiers()) {
+      return false;
+    }
+    if (event.getKeyCode() >= KeyEvent.KEYCODE_A && event.getKeyCode() <= KeyEvent.KEYCODE_Z) {
       return true;
     }
 
