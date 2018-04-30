@@ -1,17 +1,78 @@
+# 2.5.4
+# Bugs Fixed
+* You can now call playAnimation() from onAnimationEnd
+* Min/Max frames are clipped to the composition start/end
+* setProgress takes into account start and end frame
+
+
+# 2.5.2
+# Features and Improvements
+* Totally new sample app!
+    * Rebuilt from the ground up.
+    * Lottiefiles integration
+    * Render times per layer
+    * Can open zip files with images from lottiefiles, even with qr scanning.
+    * Change speed
+# Bugs Fixed
+* Fixed a regression with ellipse direction
+
+# 2.5.1
+### Features and Improvements
+* Removed framerate restriction introduced in 2.5.0 that caused Lottie to attempt to render at the After Effects framerate. This caused animations to appear unexpectedly janky in most cases.
+### Bugs Fixed
+* Many minor bug fixes around setting min/max frames
+* Removed @RestrictTo on LottieValueCallback
+* Improved thread safety of animation listeners
+* Fixed looping when the animation speed is reversed
+
+
+# 2.5.0
+### Features and Improvements
+* Added the ability to dynamically change properties at runtime. See [docs](http://airbnb.io/lottie/android/dynamic.html) for more info. This feature removed the existing APIs for
+changing the color dynamically with a color filter. Refer to the docs for migration info from
+existing ColorFilter APIs.
+* Added a setRepeatMode and setRepeatCount (Thanks Fabio Nuno!).
+* Completely overhauled json deserialization. Deserializing a composition takes half as long and
+can deserialize much larger json files (tested 50mb) without ooming.
+* Overhauled the underlying time animator. It now:
+    * More accurately handles setFrame/getFrame/minFrame/maxFrame APIs. There were cases where they
+    could be off by one before.
+    * Renders at the fps specified by After Effects.
+    * Added docs and clearer rules around animatedValue and animatedFraction in animator callbacks.
+* API to remove all animator listeners.
+* Adhere to the Animatable interface.
+* Bumped the minSdk from 14 to 16 to use Choreographer in the animator mentioned above.
+### Bugs Fixed
+* Fixed a bug that made it difficult to chain animations in onAnimationEnd callbacks.
+* Fixed a regression with unknown masks modes.
+* Fixed a crash trying to recycle a null bitmap.
+* Fixed a bug when an opacity animation time interpolator was >1.
+
+# 2.3.1
+### Features and Improvements
+* Expose `LottieComposition#getImages()` to aid in preloading images.
+* Added support for text baseline.
+### Bugs Fixed
+* Prevented a crash when setting min frame > previous max frame.
+* Fixed some bugs in subtract masks.
+* Fixed some animation clamping when an animation was longer than its parent and time stretched.
+* Stopped applying time stretch to a layer transform.
+
+
 # 2.3.0
 ### Features and Improvements
 * Animator fixes:
-    * Previously, some usages of lottie animator apis/api listeners would cause unexpected 
+    * Previously, some usages of lottie animator apis/api listeners would cause unexpected
     behavior, especially calling apis from listener callbacks.
-    * This is breaking change if you use `playAnimation(start, end)`. It has been removed in 
-    favor of explicit methods for `setMinFrame/Progress`, `setMaxFrame/Progress` and 
-    `setMinAndMaxFrame/Progress` followed by an explicit call to `playAnimation` or 
-    `resumeAnimation`. 
-    * `reverseAnimation` and `resumeReverseAnimation` apis have been removed in favor of 
+    * This is breaking change if you use `playAnimation(start, end)`. It has been removed in
+    favor of explicit methods for `setMinFrame/Progress`, `setMaxFrame/Progress` and
+    `setMinAndMaxFrame/Progress` followed by an explicit call to `playAnimation` or
+    `resumeAnimation`.
+    * `reverseAnimation` and `resumeReverseAnimation` apis have been removed in favor of
     `play` and `resume` with `speed` < 0.
     * If you have created hack around these limitations or complex animator chaining, please test
      your animations after updating.
-* Set an animation from R.raw (res/raw) if you want static references to your animation files. 
+* Set an animation from R.raw (res/raw) if you want static references to your animation files.
 This can help prevent mismatches between api calls and file names. Thanks @cyrilmottier!
 * Support for ellipse direction.
 * Expose image directory name if set from bodymovin.

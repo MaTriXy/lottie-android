@@ -1,39 +1,42 @@
+# https://cloud.google.com/solutions/continuous-delivery-with-travis-ci
 language: android
-
+group: travis_lts
+cache:
+  directories:
+  - "$HOME/.m2"
+  - "$HOME/.gradle"
+  - "$HOME/gcloud-sdk/"
+env:
+  - PATH=${HOME}/gcloud-sdk/bin:$PATH CLOUDSDK_CORE_DISABLE_PROMPTS=1
+before_install:
+  - yes | sdkmanager "platforms;android-27"
+  - export TRAVIS_GIT_BRANCH=$(if [ "$TRAVIS_PULL_REQUEST" == "false" ]; then echo $TRAVIS_BRANCH; else echo $TRAVIS_PULL_REQUEST_BRANCH; fi)
+  - export GIT_SHA=$(git rev-parse HEAD)
+  - export GIT_MERGE_BASE=$(git merge-base master)
+  - echo GIT_SHA $GIT_SHA
+  - echo GIT_MERGE_BASE $GIT_MERGE_BASE
+install:
+  - . $HOME/.nvm/nvm.sh
+  - nvm install stable
+  - nvm use stable
+  - npm install
 android:
   components:
     - tools
     - platform-tools
-    - build-tools-26.0.1
-    - android-26
+    - build-tools-27.0.3
+    - android-27
     - extra-android-m2repository
-  licenses:
-    - android-sdk-license-.+
-    - '.+'
-
-after_success:
-  - .buildscript/deploy_snapshot.sh
-
 jdk:
   - oraclejdk8
-
 branches:
   except:
     - gh-pages
-
 notifications:
   email: false
+script:
+  - ./gradlew check
 
-script: ./gradlew check
-
+  - ./gradlew :LottieSample:assembleAndroidTest :LottieSample:assembleDebug
+  - ./gcloud_run.sh
 sudo: false
-
-cache:
-  directories:
-    - $HOME/.m2
-
-
-before_install:
-  - mkdir "$ANDROID_HOME/licenses" || true
-  - echo -e "\n8933bad161af4178b1185d1a37fbf41ea5269c55" > "$ANDROID_HOME/licenses/android-sdk-license"
-  - echo -e "\n84831b9409646a918e30573bab4c9c91346d8abd" > "$ANDROID_HOME/licenses/android-sdk-preview-license"

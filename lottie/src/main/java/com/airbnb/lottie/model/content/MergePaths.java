@@ -9,8 +9,6 @@ import com.airbnb.lottie.animation.content.Content;
 import com.airbnb.lottie.animation.content.MergePathsContent;
 import com.airbnb.lottie.model.layer.BaseLayer;
 
-import org.json.JSONObject;
-
 
 public class MergePaths implements ContentModel {
 
@@ -21,7 +19,7 @@ public class MergePaths implements ContentModel {
     Intersect,
     ExcludeIntersections;
 
-    private static MergePathsMode forId(int id) {
+    public static MergePathsMode forId(int id) {
       switch (id) {
         case 1:
           return Merge;
@@ -42,7 +40,7 @@ public class MergePaths implements ContentModel {
   private final String name;
   private final MergePathsMode mode;
 
-  private MergePaths(String name, MergePathsMode mode) {
+  public MergePaths(String name, MergePathsMode mode) {
     this.name = name;
     this.mode = mode;
   }
@@ -66,14 +64,5 @@ public class MergePaths implements ContentModel {
   @Override
   public String toString() {
     return "MergePaths{" + "mode=" +  mode + '}';
-  }
-
-  static class Factory {
-    private Factory() {
-    }
-
-    static MergePaths newInstance(JSONObject json) {
-      return new MergePaths(json.optString("nm"), MergePathsMode.forId(json.optInt("mm", 1)));
-    }
   }
 }

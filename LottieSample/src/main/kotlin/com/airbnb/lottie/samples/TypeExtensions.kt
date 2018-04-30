@@ -5,6 +5,9 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
+import android.os.Build
+import android.os.VibrationEffect
+import android.os.Vibrator
 import android.support.annotation.DrawableRes
 import android.support.annotation.LayoutRes
 import android.support.annotation.StringRes
@@ -15,7 +18,10 @@ import android.support.v4.content.ContextCompat
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.EditText
+import android.widget.ImageView
 import android.widget.TextView
+import com.bumptech.glide.Glide
 
 fun Fragment.startActivity(cls: Class<*>) {
     startActivity(Intent(context, cls))
@@ -45,4 +51,34 @@ fun View.setVisibleIf(condition: Boolean) {
     visibility = if (condition) View.VISIBLE else View.GONE
 }
 
+fun ImageView.setImageUrl(url: String) = Glide.with(this).load(url).into(this)
+
+inline fun <reified T> flatten(vararg lists: List<T>?) = lists.flatMap { it ?: emptyList() }
+
 fun Float.lerp(other: Float, amount: Float): Float = this + amount * (other - this)
+
+fun Float.sqrt() = Math.sqrt(this.toDouble()).toFloat()
+
+fun View.getText(@StringRes res: Int) = this.resources.getText(res)
+operator fun Boolean.inc() = !this
+
+fun EditText.parseIntOrNull(): Int? {
+    return try {
+        Integer.parseInt(text.toString())
+    } catch (e: NumberFormatException) {
+        null
+    }
+}
+
+fun Context.hasPermission(permission: String): Boolean {
+    return ContextCompat.checkSelfPermission(this, permission) == PackageManager.PERMISSION_GRANTED
+}
+
+fun Vibrator.vibrateCompat(millis: Long) {
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+        vibrate(VibrationEffect.createOneShot(millis, VibrationEffect.DEFAULT_AMPLITUDE))
+    } else {
+        @Suppress("DEPRECATION")
+        vibrate(millis)
+    }
+}

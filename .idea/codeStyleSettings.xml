@@ -79,6 +79,7 @@
           </indentOptions>
         </codeStyleSettings>
         <codeStyleSettings language="JAVA">
+          <option name="RIGHT_MARGIN" value="150" />
           <option name="LINE_COMMENT_AT_FIRST_COLUMN" value="false" />
           <option name="LINE_COMMENT_ADD_SPACE" value="true" />
           <option name="ALIGN_MULTILINE_PARAMETERS" value="false" />
@@ -107,7 +108,7 @@
           <option name="PARAMETER_ANNOTATION_WRAP" value="1" />
           <option name="VARIABLE_ANNOTATION_WRAP" value="1" />
           <option name="ENUM_CONSTANTS_WRAP" value="1" />
-          <option name="WRAP_ON_TYPING" value="1" />
+          <option name="WRAP_ON_TYPING" value="0" />
           <indentOptions>
             <option name="INDENT_SIZE" value="2" />
             <option name="CONTINUATION_INDENT_SIZE" value="4" />

@@ -15,16 +15,24 @@ import android.support.v4.util.LongSparseArray;
 
 import com.airbnb.lottie.L;
 import com.airbnb.lottie.LottieDrawable;
+import com.airbnb.lottie.LottieProperty;
 import com.airbnb.lottie.animation.keyframe.BaseKeyframeAnimation;
+import com.airbnb.lottie.animation.keyframe.ValueCallbackKeyframeAnimation;
+import com.airbnb.lottie.model.KeyPath;
 import com.airbnb.lottie.model.content.GradientColor;
 import com.airbnb.lottie.model.content.GradientFill;
 import com.airbnb.lottie.model.content.GradientType;
 import com.airbnb.lottie.model.layer.BaseLayer;
+import com.airbnb.lottie.utils.MiscUtils;
+import com.airbnb.lottie.value.LottieValueCallback;
 
 import java.util.ArrayList;
 import java.util.List;
 
-public class GradientFillContent implements DrawingContent, BaseKeyframeAnimation.AnimationListener {
+import static com.airbnb.lottie.utils.MiscUtils.clamp;
+
+public class GradientFillContent
+    implements DrawingContent, BaseKeyframeAnimation.AnimationListener, KeyPathElementContent {
   /**
    * Cache the gradients such that it runs at 30fps.
    */
@@ -42,6 +50,7 @@ public class GradientFillContent implements DrawingContent, BaseKeyframeAnimatio
   private final BaseKeyframeAnimation<Integer, Integer> opacityAnimation;
   private final BaseKeyframeAnimation<PointF, PointF> startPointAnimation;
   private final BaseKeyframeAnimation<PointF, PointF> endPointAnimation;
+  @Nullable private BaseKeyframeAnimation<ColorFilter, ColorFilter> colorFilterAnimation;
   private final LottieDrawable lottieDrawable;
   private final int cacheSteps;
 
@@ -102,8 +111,12 @@ public class GradientFillContent implements DrawingContent, BaseKeyframeAnimatio
     shader.setLocalMatrix(shaderMatrix);
     paint.setShader(shader);
 
+    if (colorFilterAnimation != null) {
+      paint.setColorFilter(colorFilterAnimation.getValue());
+    }
+
     int alpha = (int) ((parentAlpha / 255f * opacityAnimation.getValue() / 100f) * 255);
-    paint.setAlpha(alpha);
+    paint.setAlpha(clamp(alpha, 0, 255));
 
     canvas.drawPath(path, paint);
     L.endSection("GradientFillContent#draw");
@@ -123,11 +136,6 @@ public class GradientFillContent implements DrawingContent, BaseKeyframeAnimatio
         outBounds.right + 1,
         outBounds.bottom + 1
     );
-  }
-
-  @Override public void addColorFilter(@Nullable String layerName, @Nullable String contentName,
-      @Nullable ColorFilter colorFilter) {
-    // Do nothing
   }
 
   @Override public String getName() {
@@ -187,5 +195,23 @@ public class GradientFillContent implements DrawingContent, BaseKeyframeAnimatio
       hash = hash * 31 * colorProgress;
     }
     return hash;
+  }
+
+  @Override public void resolveKeyPath(
+      KeyPath keyPath, int depth, List<KeyPath> accumulator, KeyPath currentPartialKeyPath) {
+    MiscUtils.resolveKeyPath(keyPath, depth, accumulator, currentPartialKeyPath, this);
+  }
+
+  @SuppressWarnings("unchecked")
+  @Override
+  public <T> void addValueCallback(T property, @Nullable LottieValueCallback<T> callback) {
+     if (property == LottieProperty.COLOR_FILTER) {
+       if (callback == null) {
+         colorFilterAnimation = null;
+       } else {
+         colorFilterAnimation =
+             new ValueCallbackKeyframeAnimation<>((LottieValueCallback<ColorFilter>) callback);
+       }
+    }
   }
 }

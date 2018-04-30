@@ -1,7 +1,7 @@
 package com.airbnb.lottie.animation.keyframe;
 
-import com.airbnb.lottie.animation.Keyframe;
-import com.airbnb.lottie.model.ScaleXY;
+import com.airbnb.lottie.value.Keyframe;
+import com.airbnb.lottie.value.ScaleXY;
 import com.airbnb.lottie.utils.MiscUtils;
 
 import java.util.List;
@@ -17,6 +17,14 @@ public class ScaleKeyframeAnimation extends KeyframeAnimation<ScaleXY> {
     }
     ScaleXY startTransform = keyframe.startValue;
     ScaleXY endTransform = keyframe.endValue;
+
+    if (valueCallback != null) {
+      //noinspection ConstantConditions
+      return valueCallback.getValueInternal(keyframe.startFrame, keyframe.endFrame,
+          startTransform, endTransform,
+          keyframeProgress, getLinearCurrentKeyframeProgress(), getProgress());
+    }
+
     return new ScaleXY(
         MiscUtils.lerp(startTransform.getScaleX(), endTransform.getScaleX(), keyframeProgress),
         MiscUtils.lerp(startTransform.getScaleY(), endTransform.getScaleY(), keyframeProgress));

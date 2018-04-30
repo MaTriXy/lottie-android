@@ -2,7 +2,7 @@ package com.airbnb.lottie.animation.keyframe;
 
 import android.graphics.PointF;
 
-import com.airbnb.lottie.animation.Keyframe;
+import com.airbnb.lottie.value.Keyframe;
 
 import java.util.List;
 
@@ -20,6 +20,12 @@ public class PointKeyframeAnimation extends KeyframeAnimation<PointF> {
 
     PointF startPoint = keyframe.startValue;
     PointF endPoint = keyframe.endValue;
+
+    if (valueCallback != null) {
+      //noinspection ConstantConditions
+      return valueCallback.getValueInternal(keyframe.startFrame, keyframe.endFrame, startPoint,
+          endPoint, keyframeProgress, getLinearCurrentKeyframeProgress(), getProgress());
+    }
 
     point.set(startPoint.x + keyframeProgress * (endPoint.x - startPoint.x),
         startPoint.y + keyframeProgress * (endPoint.y - startPoint.y));

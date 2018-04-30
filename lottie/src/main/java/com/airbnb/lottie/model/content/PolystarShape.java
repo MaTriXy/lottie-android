@@ -2,16 +2,12 @@ package com.airbnb.lottie.model.content;
 
 import android.graphics.PointF;
 
-import com.airbnb.lottie.LottieComposition;
 import com.airbnb.lottie.LottieDrawable;
 import com.airbnb.lottie.animation.content.Content;
 import com.airbnb.lottie.animation.content.PolystarContent;
 import com.airbnb.lottie.model.animatable.AnimatableFloatValue;
-import com.airbnb.lottie.model.animatable.AnimatablePathValue;
 import com.airbnb.lottie.model.animatable.AnimatableValue;
 import com.airbnb.lottie.model.layer.BaseLayer;
-
-import org.json.JSONObject;
 
 public class PolystarShape implements ContentModel {
   public enum Type {
@@ -24,7 +20,7 @@ public class PolystarShape implements ContentModel {
       this.value = value;
     }
 
-    static Type forValue(int value) {
+    public static Type forValue(int value) {
       for (Type type : Type.values()) {
         if (type.value == value) {
           return type;
@@ -44,7 +40,7 @@ public class PolystarShape implements ContentModel {
   private final AnimatableFloatValue innerRoundedness;
   private final AnimatableFloatValue outerRoundedness;
 
-  private PolystarShape(String name, Type type, AnimatableFloatValue points,
+  public PolystarShape(String name, Type type, AnimatableFloatValue points,
       AnimatableValue<PointF, PointF> position,
       AnimatableFloatValue rotation, AnimatableFloatValue innerRadius,
       AnimatableFloatValue outerRadius, AnimatableFloatValue innerRoundedness,
@@ -99,39 +95,4 @@ public class PolystarShape implements ContentModel {
   @Override public Content toContent(LottieDrawable drawable, BaseLayer layer) {
     return new PolystarContent(drawable, layer, this);
   }
-
-  static class Factory {
-    private Factory() {
-    }
-
-    static PolystarShape newInstance(JSONObject json, LottieComposition composition) {
-      final String name = json.optString("nm");
-      Type type = Type.forValue(json.optInt("sy"));
-      AnimatableFloatValue points =
-          AnimatableFloatValue.Factory.newInstance(json.optJSONObject("pt"), composition, false);
-      AnimatableValue<PointF, PointF> position = AnimatablePathValue
-          .createAnimatablePathOrSplitDimensionPath(json.optJSONObject("p"), composition);
-      AnimatableFloatValue rotation =
-          AnimatableFloatValue.Factory.newInstance(json.optJSONObject("r"), composition, false);
-      AnimatableFloatValue outerRadius =
-          AnimatableFloatValue.Factory.newInstance(json.optJSONObject("or"), composition);
-      AnimatableFloatValue outerRoundedness =
-          AnimatableFloatValue.Factory.newInstance(json.optJSONObject("os"), composition, false);
-      AnimatableFloatValue innerRadius;
-      AnimatableFloatValue innerRoundedness;
-
-      if (type == Type.Star) {
-        innerRadius =
-            AnimatableFloatValue.Factory.newInstance(json.optJSONObject("ir"), composition);
-        innerRoundedness =
-            AnimatableFloatValue.Factory.newInstance(json.optJSONObject("is"), composition, false);
-      } else {
-        innerRadius = null;
-        innerRoundedness = null;
-      }
-      return new PolystarShape(name, type, points, position, rotation, innerRadius, outerRadius,
-          innerRoundedness, outerRoundedness);
-    }
-  }
-
 }

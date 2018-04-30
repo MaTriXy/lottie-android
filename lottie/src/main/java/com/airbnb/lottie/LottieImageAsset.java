@@ -1,11 +1,10 @@
 package com.airbnb.lottie;
 
-import org.json.JSONObject;
+import android.support.annotation.RestrictTo;
 
 /**
  * Data class describing an image asset exported by bodymovin.
  */
-@SuppressWarnings("WeakerAccess")
 public class LottieImageAsset {
   private final int width;
   private final int height;
@@ -13,7 +12,8 @@ public class LottieImageAsset {
   private final String fileName;
   private final String dirName;
 
-  private LottieImageAsset(int width, int height, String id, String fileName, String dirName) {
+  @RestrictTo(RestrictTo.Scope.LIBRARY)
+  public LottieImageAsset(int width, int height, String id, String fileName, String dirName) {
     this.width = width;
     this.height = height;
     this.id = id;
@@ -21,21 +21,11 @@ public class LottieImageAsset {
     this.dirName = dirName;
   }
 
-  static class Factory {
-    private Factory() {
-    }
-
-    static LottieImageAsset newInstance(JSONObject imageJson) {
-      return new LottieImageAsset(imageJson.optInt("w"), imageJson.optInt("h"), imageJson.optString("id"),
-          imageJson.optString("p"), imageJson.optString("u"));
-    }
-  }
-
-  @SuppressWarnings("WeakerAccess") public int getWidth() {
+  public int getWidth() {
     return width;
   }
 
-  @SuppressWarnings("WeakerAccess")public int getHeight() {
+  public int getHeight() {
     return height;
   }
 
@@ -47,7 +37,7 @@ public class LottieImageAsset {
     return fileName;
   }
 
-  public String getDirName() {
+  @SuppressWarnings("unused") public String getDirName() {
     return dirName;
   }
 }

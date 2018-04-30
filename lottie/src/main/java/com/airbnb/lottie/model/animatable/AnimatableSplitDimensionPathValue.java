@@ -9,7 +9,7 @@ public class AnimatableSplitDimensionPathValue implements AnimatableValue<PointF
   private final AnimatableFloatValue animatableXDimension;
   private final AnimatableFloatValue animatableYDimension;
 
-  AnimatableSplitDimensionPathValue(
+  public AnimatableSplitDimensionPathValue(
       AnimatableFloatValue animatableXDimension,
       AnimatableFloatValue animatableYDimension) {
     this.animatableXDimension = animatableXDimension;
@@ -20,9 +20,4 @@ public class AnimatableSplitDimensionPathValue implements AnimatableValue<PointF
     return new SplitDimensionPathKeyframeAnimation(
         animatableXDimension.createAnimation(), animatableYDimension.createAnimation());
   }
-
-  @Override public boolean hasAnimation() {
-    return animatableXDimension.hasAnimation() || animatableYDimension.hasAnimation();
-  }
-
 }
