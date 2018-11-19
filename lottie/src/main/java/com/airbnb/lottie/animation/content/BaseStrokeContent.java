@@ -8,8 +8,8 @@ import android.graphics.Paint;
 import android.graphics.Path;
 import android.graphics.PathMeasure;
 import android.graphics.RectF;
-import android.support.annotation.CallSuper;
-import android.support.annotation.Nullable;
+import androidx.annotation.CallSuper;
+import androidx.annotation.Nullable;
 
 import com.airbnb.lottie.L;
 import com.airbnb.lottie.LottieDrawable;
@@ -38,6 +38,7 @@ public abstract class BaseStrokeContent
   private final Path trimPathPath = new Path();
   private final RectF rect = new RectF();
   private final LottieDrawable lottieDrawable;
+  private final BaseLayer layer;
   private final List<PathGroup> pathGroups = new ArrayList<>();
   private final float[] dashPatternValues;
   final Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
@@ -49,13 +50,15 @@ public abstract class BaseStrokeContent
   @Nullable private BaseKeyframeAnimation<ColorFilter, ColorFilter> colorFilterAnimation;
 
   BaseStrokeContent(final LottieDrawable lottieDrawable, BaseLayer layer, Paint.Cap cap,
-      Paint.Join join, AnimatableIntegerValue opacity, AnimatableFloatValue width,
+      Paint.Join join, float miterLimit, AnimatableIntegerValue opacity, AnimatableFloatValue width,
       List<AnimatableFloatValue> dashPattern, AnimatableFloatValue offset) {
     this.lottieDrawable = lottieDrawable;
+    this.layer = layer;
 
     paint.setStyle(Paint.Style.STROKE);
     paint.setStrokeCap(cap);
     paint.setStrokeJoin(join);
+    paint.setStrokeMiter(miterLimit);
 
     opacityAnimation = opacity.createAnimation();
     widthAnimation = width.createAnimation();
@@ -309,6 +312,8 @@ public abstract class BaseStrokeContent
       } else {
         colorFilterAnimation =
             new ValueCallbackKeyframeAnimation<>((LottieValueCallback<ColorFilter>) callback);
+        colorFilterAnimation.addUpdateListener(this);
+        layer.addAnimation(colorFilterAnimation);
       }
     }
   }

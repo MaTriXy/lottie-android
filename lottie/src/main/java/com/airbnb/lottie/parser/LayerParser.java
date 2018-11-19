@@ -35,7 +35,9 @@ public class LayerParser {
   }
 
   public static Layer parse(JsonReader reader, LottieComposition composition) throws IOException {
-    String layerName = null;
+    // This should always be set by After Effects. However, if somebody wants to minify
+    // and optimize their json, the name isn't critical for most cases so it can be removed.
+    String layerName = "UNSET";
     Layer.LayerType layerType = null;
     String refId = null;
     long layerId = 0;
@@ -204,7 +206,7 @@ public class LayerParser {
     }
 
     // The + 1 is because the animation should be visible on the out frame itself.
-    outFrame = (outFrame > 0 ? outFrame : composition.getEndFrame()) + 1;
+    outFrame = (outFrame > 0 ? outFrame : composition.getEndFrame());
     Keyframe<Float> visibleKeyframe =
         new Keyframe<>(composition, 1f, 1f, null, inFrame, outFrame);
     inOutKeyframes.add(visibleKeyframe);

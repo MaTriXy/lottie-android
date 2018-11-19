@@ -7,7 +7,7 @@ import android.graphics.PointF;
 import android.graphics.RadialGradient;
 import android.graphics.RectF;
 import android.graphics.Shader;
-import android.support.v4.util.LongSparseArray;
+import androidx.collection.LongSparseArray;
 
 import com.airbnb.lottie.LottieDrawable;
 import com.airbnb.lottie.animation.keyframe.BaseKeyframeAnimation;
@@ -36,8 +36,8 @@ public class GradientStrokeContent extends BaseStrokeContent {
   public GradientStrokeContent(
       final LottieDrawable lottieDrawable, BaseLayer layer, GradientStroke stroke) {
     super(lottieDrawable, layer, stroke.getCapType().toPaintCap(),
-        stroke.getJoinType().toPaintJoin(), stroke.getOpacity(), stroke.getWidth(),
-        stroke.getLineDashPattern(), stroke.getDashOffset());
+        stroke.getJoinType().toPaintJoin(), stroke.getMiterLimit(), stroke.getOpacity(),
+        stroke.getWidth(), stroke.getLineDashPattern(), stroke.getDashOffset());
 
     name = stroke.getName();
     type = stroke.getGradientType();

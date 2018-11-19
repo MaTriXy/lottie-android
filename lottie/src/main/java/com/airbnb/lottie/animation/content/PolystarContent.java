@@ -2,7 +2,7 @@ package com.airbnb.lottie.animation.content;
 
 import android.graphics.Path;
 import android.graphics.PointF;
-import android.support.annotation.Nullable;
+import androidx.annotation.Nullable;
 
 import com.airbnb.lottie.LottieDrawable;
 import com.airbnb.lottie.LottieProperty;
@@ -78,8 +78,8 @@ public class PolystarContent
     outerRadiusAnimation.addUpdateListener(this);
     outerRoundednessAnimation.addUpdateListener(this);
     if (type == PolystarShape.Type.Star) {
-      outerRadiusAnimation.addUpdateListener(this);
-      outerRoundednessAnimation.addUpdateListener(this);
+      innerRadiusAnimation.addUpdateListener(this);
+      innerRoundednessAnimation.addUpdateListener(this);
     }
   }
 

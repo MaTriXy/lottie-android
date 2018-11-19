@@ -1,18 +1,11 @@
 package com.airbnb.lottie.model.layer;
 
 import android.annotation.SuppressLint;
-import android.graphics.Canvas;
-import android.graphics.Matrix;
-import android.graphics.Paint;
-import android.graphics.Path;
-import android.graphics.PorterDuff;
-import android.graphics.PorterDuffXfermode;
-import android.graphics.RectF;
-import android.support.annotation.CallSuper;
-import android.support.annotation.FloatRange;
-import android.support.annotation.Nullable;
-import android.util.Log;
-
+import android.graphics.*;
+import android.os.Build;
+import androidx.annotation.CallSuper;
+import androidx.annotation.FloatRange;
+import androidx.annotation.Nullable;
 import com.airbnb.lottie.L;
 import com.airbnb.lottie.LottieComposition;
 import com.airbnb.lottie.LottieDrawable;
@@ -33,8 +26,14 @@ import java.util.List;
 
 public abstract class BaseLayer
     implements DrawingContent, BaseKeyframeAnimation.AnimationListener, KeyPathElement {
-  private static final int SAVE_FLAGS = Canvas.CLIP_SAVE_FLAG | Canvas.CLIP_TO_LAYER_SAVE_FLAG |
-      Canvas.MATRIX_SAVE_FLAG;
+  /**
+   * These flags were in Canvas but they were deprecated and removed.
+   * TODO: test removing these on older versions of Android.
+   */
+    private static final int CLIP_SAVE_FLAG = 0x02;
+    private static final int CLIP_TO_LAYER_SAVE_FLAG = 0x10;
+    private static final int MATRIX_SAVE_FLAG = 0x01;
+    private static final int SAVE_FLAGS = CLIP_SAVE_FLAG | CLIP_TO_LAYER_SAVE_FLAG | MATRIX_SAVE_FLAG;
 
   @Nullable
   static BaseLayer forModel(
@@ -104,7 +103,8 @@ public abstract class BaseLayer
     if (layerModel.getMasks() != null && !layerModel.getMasks().isEmpty()) {
       this.mask = new MaskKeyframeAnimation(layerModel.getMasks());
       for (BaseKeyframeAnimation<?, Path> animation : mask.getMaskAnimations()) {
-        addAnimation(animation);
+        // Don't call addAnimation() because progress gets set manually in setProgress to
+        // properly handle time scale.
         animation.addUpdateListener(this);
       }
       for (BaseKeyframeAnimation<Integer, Integer> animation : mask.getOpacityAnimations()) {
@@ -156,6 +156,17 @@ public abstract class BaseLayer
     lottieDrawable.invalidateSelf();
   }
 
+  @SuppressLint("WrongConstant")
+  private void saveLayerCompat(Canvas canvas, RectF rect, Paint paint, boolean all) {
+    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) {
+      // This method was deprecated in API level 26 and not recommended since 22, but its
+      // 2-parameter replacement is only available starting at API level 21.
+      canvas.saveLayer(rect, paint, all ? Canvas.ALL_SAVE_FLAG : SAVE_FLAGS);
+    } else {
+      canvas.saveLayer(rect, paint);
+    }
+  }
+
   public void addAnimation(BaseKeyframeAnimation<?, ?> newAnimation) {
     animations.add(newAnimation);
   }
@@ -165,7 +176,7 @@ public abstract class BaseLayer
     boundsMatrix.preConcat(transform.getMatrix());
   }
 
-  @SuppressLint("WrongConstant") @Override
+  @Override
   public void draw(Canvas canvas, Matrix parentMatrix, int parentAlpha) {
     L.beginSection(drawTraceName);
     if (!visible) {
@@ -203,7 +214,7 @@ public abstract class BaseLayer
     L.endSection("Layer#computeBounds");
 
     L.beginSection("Layer#saveLayer");
-    canvas.saveLayer(rect, contentPaint, Canvas.ALL_SAVE_FLAG);
+    saveLayerCompat(canvas, rect, contentPaint, true);
     L.endSection("Layer#saveLayer");
 
     // Clear the off screen buffer. This is necessary for some phones.
@@ -219,7 +230,7 @@ public abstract class BaseLayer
     if (hasMatteOnThisLayer()) {
       L.beginSection("Layer#drawMatte");
       L.beginSection("Layer#saveLayer");
-      canvas.saveLayer(rect, mattePaint, SAVE_FLAGS);
+      saveLayerCompat(canvas, rect, mattePaint, false);
       L.endSection("Layer#saveLayer");
       clearCanvas(canvas);
       //noinspection ConstantConditions
@@ -326,7 +337,7 @@ public abstract class BaseLayer
     applyMasks(canvas, matrix, Mask.MaskMode.MaskModeSubtract);
   }
 
-  @SuppressLint("WrongConstant") private void applyMasks(Canvas canvas, Matrix matrix,
+  private void applyMasks(Canvas canvas, Matrix matrix,
       Mask.MaskMode maskMode) {
     Paint paint;
     switch (maskMode) {
@@ -334,8 +345,6 @@ public abstract class BaseLayer
         paint = subtractMaskPaint;
         break;
       case MaskModeIntersect:
-        Log.w(L.TAG, "Animation contains intersect masks. They are not supported but will be " +
-            "treated like add masks.");
       case MaskModeAdd:
       default:
         // As a hack, we treat all non-subtract masks like add masks. This is not correct but it's
@@ -359,7 +368,7 @@ public abstract class BaseLayer
 
     L.beginSection("Layer#drawMask");
     L.beginSection("Layer#saveLayer");
-    canvas.saveLayer(rect, paint, SAVE_FLAGS);
+    saveLayerCompat(canvas, rect, paint, false);
     L.endSection("Layer#saveLayer");
     clearCanvas(canvas);
 
@@ -399,6 +408,11 @@ public abstract class BaseLayer
   void setProgress(@FloatRange(from = 0f, to = 1f) float progress) {
     // Time stretch should not be applied to the layer transform.
     transform.setProgress(progress);
+    if (mask != null) {
+      for (int i = 0; i < mask.getMaskAnimations().size(); i++) {
+        mask.getMaskAnimations().get(i).setProgress(progress);
+      }
+    }
     if (layerModel.getTimeStretch() != 0) {
       progress /= layerModel.getTimeStretch();
     }

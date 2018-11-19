@@ -10,8 +10,9 @@ import android.graphics.PointF;
 import android.graphics.RadialGradient;
 import android.graphics.RectF;
 import android.graphics.Shader;
-import android.support.annotation.Nullable;
-import android.support.v4.util.LongSparseArray;
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
+import androidx.collection.LongSparseArray;
 
 import com.airbnb.lottie.L;
 import com.airbnb.lottie.LottieDrawable;
@@ -37,7 +38,8 @@ public class GradientFillContent
    * Cache the gradients such that it runs at 30fps.
    */
   private static final int CACHE_STEPS_MS = 32;
-  private final String name;
+  @NonNull private final String name;
+  private final BaseLayer layer;
   private final LongSparseArray<LinearGradient> linearGradientCache = new LongSparseArray<>();
   private final LongSparseArray<RadialGradient> radialGradientCache = new LongSparseArray<>();
   private final Matrix shaderMatrix = new Matrix();
@@ -54,8 +56,8 @@ public class GradientFillContent
   private final LottieDrawable lottieDrawable;
   private final int cacheSteps;
 
-  public GradientFillContent(final LottieDrawable lottieDrawable, BaseLayer layer, GradientFill
-      fill) {
+  public GradientFillContent(final LottieDrawable lottieDrawable, BaseLayer layer, GradientFill fill) {
+    this.layer = layer;
     name = fill.getName();
     this.lottieDrawable = lottieDrawable;
     type = fill.getGradientType();
@@ -211,6 +213,8 @@ public class GradientFillContent
        } else {
          colorFilterAnimation =
              new ValueCallbackKeyframeAnimation<>((LottieValueCallback<ColorFilter>) callback);
+         colorFilterAnimation.addUpdateListener(this);
+         layer.addAnimation(colorFilterAnimation);
        }
     }
   }

@@ -12,11 +12,12 @@ import android.graphics.Typeface;
 import android.graphics.drawable.Animatable;
 import android.graphics.drawable.Drawable;
 import android.os.Build;
-import android.support.annotation.FloatRange;
-import android.support.annotation.IntDef;
-import android.support.annotation.IntRange;
-import android.support.annotation.NonNull;
-import android.support.annotation.Nullable;
+import androidx.annotation.FloatRange;
+import androidx.annotation.IntDef;
+import androidx.annotation.IntRange;
+import androidx.annotation.MainThread;
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 import android.util.Log;
 import android.view.View;
 
@@ -131,6 +132,10 @@ public class LottieDrawable extends Drawable implements Drawable.Callback, Anima
    * instead of using merge paths.
    */
   public void enableMergePathsForKitKatAndAbove(boolean enable) {
+    if (enableMergePaths == enable) {
+      return;
+    }
+
     if (Build.VERSION.SDK_INT < Build.VERSION_CODES.KITKAT) {
       Log.w(TAG, "Merge paths are not supported pre-Kit Kat.");
       return;
@@ -186,6 +191,8 @@ public class LottieDrawable extends Drawable implements Drawable.Callback, Anima
   }
 
   /**
+   * Create a composition with {@link LottieCompositionFactory}
+   *
    * @return True if the composition is different from the previously set composition, false otherwise.
    */
   public boolean setComposition(LottieComposition composition) {
@@ -244,6 +251,7 @@ public class LottieDrawable extends Drawable implements Drawable.Callback, Anima
     composition = null;
     compositionLayer = null;
     imageAssetManager = null;
+    animator.clearComposition();
     invalidateSelf();
   }
 
@@ -318,10 +326,12 @@ public class LottieDrawable extends Drawable implements Drawable.Callback, Anima
 
 // <editor-fold desc="animator">
 
+  @MainThread
   @Override public void start() {
     playAnimation();
   }
 
+  @MainThread
   @Override public void stop() {
     endAnimation();
   }
@@ -334,6 +344,7 @@ public class LottieDrawable extends Drawable implements Drawable.Callback, Anima
    * Plays the animation from the beginning. If speed is < 0, it will start at the end
    * and play towards the beginning
    */
+  @MainThread
   public void playAnimation() {
     if (compositionLayer == null) {
       lazyCompositionTasks.add(new LazyCompositionTask() {
@@ -346,6 +357,7 @@ public class LottieDrawable extends Drawable implements Drawable.Callback, Anima
     animator.playAnimation();
   }
 
+  @MainThread
   public void endAnimation() {
     lazyCompositionTasks.clear();
     animator.endAnimation();
@@ -355,6 +367,7 @@ public class LottieDrawable extends Drawable implements Drawable.Callback, Anima
    * Continues playing the animation from its current position. If speed < 0, it will play backwards
    * from the current position.
    */
+  @MainThread
   public void resumeAnimation() {
     if (compositionLayer == null) {
       lazyCompositionTasks.add(new LazyCompositionTask() {
@@ -371,6 +384,15 @@ public class LottieDrawable extends Drawable implements Drawable.Callback, Anima
    * Sets the minimum frame that the animation will start from when playing or looping.
    */
   public void setMinFrame(final int minFrame) {
+    if (composition == null) {
+      lazyCompositionTasks.add(new LazyCompositionTask() {
+        @Override
+        public void run(LottieComposition composition) {
+          setMinFrame(minFrame);
+        }
+      });
+      return;
+    }
     animator.setMinFrame(minFrame);
   }
 
@@ -393,13 +415,22 @@ public class LottieDrawable extends Drawable implements Drawable.Callback, Anima
        });
        return;
      }
-   setMinFrame((int) MiscUtils.lerp(minProgress, composition.getStartFrame(), composition.getEndFrame()));
+   setMinFrame((int) MiscUtils.lerp(composition.getStartFrame(), composition.getEndFrame(), minProgress));
   }
 
   /**
    * Sets the maximum frame that the animation will end at when playing or looping.
    */
   public void setMaxFrame(final int maxFrame) {
+    if (composition == null) {
+      lazyCompositionTasks.add(new LazyCompositionTask() {
+        @Override
+        public void run(LottieComposition composition) {
+          setMaxFrame(maxFrame);
+        }
+      });
+      return;
+    }
     animator.setMaxFrame(maxFrame);
   }
 
@@ -422,14 +453,23 @@ public class LottieDrawable extends Drawable implements Drawable.Callback, Anima
       });
       return;
     }
-    setMaxFrame((int) MiscUtils.lerp(maxProgress, composition.getStartFrame(), composition.getEndFrame()));
+    setMaxFrame((int) MiscUtils.lerp(composition.getStartFrame(), composition.getEndFrame(), maxProgress));
   }
 
   /**
    * @see #setMinFrame(int)
    * @see #setMaxFrame(int)
    */
-  public void setMinAndMaxFrame(int minFrame, int maxFrame) {
+  public void setMinAndMaxFrame(final int minFrame, final int maxFrame) {
+    if (composition == null) {
+      lazyCompositionTasks.add(new LazyCompositionTask() {
+        @Override
+        public void run(LottieComposition composition) {
+          setMinAndMaxFrame(minFrame, maxFrame);
+        }
+      });
+      return;
+    }
     animator.setMinAndMaxFrames(minFrame, maxFrame);
   }
 
@@ -448,10 +488,9 @@ public class LottieDrawable extends Drawable implements Drawable.Callback, Anima
       });
       return;
     }
-    setMinAndMaxFrame(
-        (int) (minProgress * composition.getDurationFrames()),
-        (int) (maxProgress * composition.getDurationFrames())
-    );
+
+    setMinAndMaxFrame((int) MiscUtils.lerp(composition.getStartFrame(), composition.getEndFrame(), minProgress),
+                      (int) MiscUtils.lerp(composition.getStartFrame(), composition.getEndFrame(), maxProgress));
   }
 
   /**

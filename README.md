@@ -35,6 +35,10 @@ Gradle is the only supported build configuration, so just add the dependency to 
 
 ```groovy
 dependencies {
-  compile 'com.airbnb.android:lottie:2.5.4'
+  implementation 'com.airbnb.android:lottie:$lottieVersion'
 }
 ```
+The latest Lottie version is:
+![lottieVersion](https://maven-badges.herokuapp.com/maven-central/com.airbnb.android/lottie/badge.svg)
+
+Lottie 2.8.0 and above only supports projects that have been migrated to [androidx](https://developer.android.com/jetpack/androidx/) for more information, read Google's [migration guide](https://developer.android.com/jetpack/androidx/migrate).
