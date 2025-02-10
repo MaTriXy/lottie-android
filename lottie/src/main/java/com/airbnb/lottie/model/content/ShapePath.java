@@ -1,5 +1,6 @@
 package com.airbnb.lottie.model.content;
 
+import com.airbnb.lottie.LottieComposition;
 import com.airbnb.lottie.LottieDrawable;
 import com.airbnb.lottie.animation.content.Content;
 import com.airbnb.lottie.animation.content.ShapeContent;
@@ -10,11 +11,13 @@ public class ShapePath implements ContentModel {
   private final String name;
   private final int index;
   private final AnimatableShapeValue shapePath;
+  private final boolean hidden;
 
-  public ShapePath(String name, int index, AnimatableShapeValue shapePath) {
+  public ShapePath(String name, int index, AnimatableShapeValue shapePath, boolean hidden) {
     this.name = name;
     this.index = index;
     this.shapePath = shapePath;
+    this.hidden = hidden;
   }
 
   public String getName() {
@@ -25,8 +28,12 @@ public class ShapePath implements ContentModel {
     return shapePath;
   }
 
-  @Override public Content toContent(LottieDrawable drawable, BaseLayer layer) {
+  @Override public Content toContent(LottieDrawable drawable, LottieComposition composition, BaseLayer layer) {
     return new ShapeContent(drawable, layer, this);
+  }
+
+  public boolean isHidden() {
+    return hidden;
   }
 
   @Override public String toString() {

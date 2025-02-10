@@ -2,6 +2,7 @@ package com.airbnb.lottie.model.content;
 
 import android.graphics.PointF;
 
+import com.airbnb.lottie.LottieComposition;
 import com.airbnb.lottie.LottieDrawable;
 import com.airbnb.lottie.animation.content.Content;
 import com.airbnb.lottie.animation.content.PolystarContent;
@@ -11,8 +12,8 @@ import com.airbnb.lottie.model.layer.BaseLayer;
 
 public class PolystarShape implements ContentModel {
   public enum Type {
-    Star(1),
-    Polygon(2);
+    STAR(1),
+    POLYGON(2);
 
     private final int value;
 
@@ -39,12 +40,14 @@ public class PolystarShape implements ContentModel {
   private final AnimatableFloatValue outerRadius;
   private final AnimatableFloatValue innerRoundedness;
   private final AnimatableFloatValue outerRoundedness;
+  private final boolean hidden;
+  private final boolean isReversed;
 
   public PolystarShape(String name, Type type, AnimatableFloatValue points,
       AnimatableValue<PointF, PointF> position,
       AnimatableFloatValue rotation, AnimatableFloatValue innerRadius,
       AnimatableFloatValue outerRadius, AnimatableFloatValue innerRoundedness,
-      AnimatableFloatValue outerRoundedness) {
+      AnimatableFloatValue outerRoundedness, boolean hidden, boolean isReversed) {
     this.name = name;
     this.type = type;
     this.points = points;
@@ -54,6 +57,8 @@ public class PolystarShape implements ContentModel {
     this.outerRadius = outerRadius;
     this.innerRoundedness = innerRoundedness;
     this.outerRoundedness = outerRoundedness;
+    this.hidden = hidden;
+    this.isReversed = isReversed;
   }
 
   public String getName() {
@@ -92,7 +97,15 @@ public class PolystarShape implements ContentModel {
     return outerRoundedness;
   }
 
-  @Override public Content toContent(LottieDrawable drawable, BaseLayer layer) {
+  public boolean isHidden() {
+    return hidden;
+  }
+
+  public boolean isReversed() {
+    return isReversed;
+  }
+
+  @Override public Content toContent(LottieDrawable drawable, LottieComposition composition, BaseLayer layer) {
     return new PolystarContent(drawable, layer, this);
   }
 }

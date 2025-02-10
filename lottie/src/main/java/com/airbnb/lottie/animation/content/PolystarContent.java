@@ -1,9 +1,9 @@
 package com.airbnb.lottie.animation.content;
 
 import android.graphics.Path;
+import android.graphics.PathMeasure;
 import android.graphics.PointF;
 import androidx.annotation.Nullable;
-
 import com.airbnb.lottie.LottieDrawable;
 import com.airbnb.lottie.LottieProperty;
 import com.airbnb.lottie.animation.keyframe.BaseKeyframeAnimation;
@@ -12,7 +12,6 @@ import com.airbnb.lottie.model.content.PolystarShape;
 import com.airbnb.lottie.model.content.ShapeTrimPath;
 import com.airbnb.lottie.model.layer.BaseLayer;
 import com.airbnb.lottie.utils.MiscUtils;
-import com.airbnb.lottie.utils.Utils;
 import com.airbnb.lottie.value.LottieValueCallback;
 
 import java.util.List;
@@ -28,10 +27,15 @@ public class PolystarContent
   private static final float POLYSTAR_MAGIC_NUMBER = .47829f;
   private static final float POLYGON_MAGIC_NUMBER = .25f;
   private final Path path = new Path();
+  private final Path lastSegmentPath = new Path();
+  private final PathMeasure lastSegmentPathMeasure = new PathMeasure();
+  private final float[] lastSegmentPosition = new float[2];
 
   private final String name;
   private final LottieDrawable lottieDrawable;
   private final PolystarShape.Type type;
+  private final boolean hidden;
+  private final boolean isReversed;
   private final BaseKeyframeAnimation<?, Float> pointsAnimation;
   private final BaseKeyframeAnimation<?, PointF> positionAnimation;
   private final BaseKeyframeAnimation<?, Float> rotationAnimation;
@@ -40,7 +44,7 @@ public class PolystarContent
   @Nullable private final BaseKeyframeAnimation<?, Float> innerRoundednessAnimation;
   private final BaseKeyframeAnimation<?, Float> outerRoundednessAnimation;
 
-  @Nullable private TrimPathContent trimPath;
+  private final CompoundTrimPathContent trimPaths = new CompoundTrimPathContent();
   private boolean isPathValid;
 
   public PolystarContent(LottieDrawable lottieDrawable, BaseLayer layer,
@@ -49,12 +53,14 @@ public class PolystarContent
 
     name = polystarShape.getName();
     type = polystarShape.getType();
+    hidden = polystarShape.isHidden();
+    isReversed = polystarShape.isReversed();
     pointsAnimation = polystarShape.getPoints().createAnimation();
     positionAnimation = polystarShape.getPosition().createAnimation();
     rotationAnimation = polystarShape.getRotation().createAnimation();
     outerRadiusAnimation = polystarShape.getOuterRadius().createAnimation();
     outerRoundednessAnimation = polystarShape.getOuterRoundedness().createAnimation();
-    if (type == PolystarShape.Type.Star) {
+    if (type == PolystarShape.Type.STAR) {
       innerRadiusAnimation = polystarShape.getInnerRadius().createAnimation();
       innerRoundednessAnimation = polystarShape.getInnerRoundedness().createAnimation();
     } else {
@@ -67,7 +73,7 @@ public class PolystarContent
     layer.addAnimation(rotationAnimation);
     layer.addAnimation(outerRadiusAnimation);
     layer.addAnimation(outerRoundednessAnimation);
-    if (type == PolystarShape.Type.Star) {
+    if (type == PolystarShape.Type.STAR) {
       layer.addAnimation(innerRadiusAnimation);
       layer.addAnimation(innerRoundednessAnimation);
     }
@@ -77,7 +83,7 @@ public class PolystarContent
     rotationAnimation.addUpdateListener(this);
     outerRadiusAnimation.addUpdateListener(this);
     outerRoundednessAnimation.addUpdateListener(this);
-    if (type == PolystarShape.Type.Star) {
+    if (type == PolystarShape.Type.STAR) {
       innerRadiusAnimation.addUpdateListener(this);
       innerRoundednessAnimation.addUpdateListener(this);
     }
@@ -96,8 +102,9 @@ public class PolystarContent
     for (int i = 0; i < contentsBefore.size(); i++) {
       Content content = contentsBefore.get(i);
       if (content instanceof TrimPathContent &&
-          ((TrimPathContent) content).getType() == ShapeTrimPath.Type.Simultaneously) {
-        trimPath = (TrimPathContent) content;
+          ((TrimPathContent) content).getType() == ShapeTrimPath.Type.SIMULTANEOUSLY) {
+        TrimPathContent trimPath = (TrimPathContent) content;
+        trimPaths.addTrimPath(trimPath);
         trimPath.addListener(this);
       }
     }
@@ -110,18 +117,23 @@ public class PolystarContent
 
     path.reset();
 
+    if (hidden) {
+      isPathValid = true;
+      return path;
+    }
+
     switch (type) {
-      case Star:
+      case STAR:
         createStarPath();
         break;
-      case Polygon:
+      case POLYGON:
         createPolygonPath();
         break;
     }
 
     path.close();
 
-    Utils.applyTrimPathIfNeeded(path, trimPath);
+    trimPaths.apply(path);
 
     isPathValid = true;
     return path;
@@ -140,6 +152,9 @@ public class PolystarContent
     currentAngle = Math.toRadians(currentAngle);
     // adjust current angle for partial points
     float anglePerPoint = (float) (2 * Math.PI / points);
+    if (isReversed) {
+      anglePerPoint *= -1;
+    }
     float halfAnglePerPoint = anglePerPoint / 2.0f;
     float partialPointAmount = points - (int) points;
     if (partialPointAmount != 0) {
@@ -224,7 +239,7 @@ public class PolystarContent
           }
         }
 
-        path.cubicTo(previousX - cp1x,previousY - cp1y, x + cp2x, y + cp2y, x, y);
+        path.cubicTo(previousX - cp1x, previousY - cp1y, x + cp2x, y + cp2y, x, y);
       }
 
       currentAngle += dTheta;
@@ -278,8 +293,28 @@ public class PolystarContent
         float cp1y = radius * roundedness * POLYGON_MAGIC_NUMBER * cp1Dy;
         float cp2x = radius * roundedness * POLYGON_MAGIC_NUMBER * cp2Dx;
         float cp2y = radius * roundedness * POLYGON_MAGIC_NUMBER * cp2Dy;
-        path.cubicTo(previousX - cp1x,previousY - cp1y, x + cp2x, y + cp2y, x, y);
+
+        if (i == numPoints - 1) {
+          // When there is a huge stroke, it will flash if the path ends where it starts.
+          // We want the final bezier curve to end *slightly* before the start.
+          // The close() call at the end will complete the polystar.
+          // https://github.com/airbnb/lottie-android/issues/2329
+          lastSegmentPath.reset();
+          lastSegmentPath.moveTo(previousX, previousY);
+          lastSegmentPath.cubicTo(previousX - cp1x, previousY - cp1y, x + cp2x, y + cp2y, x, y);
+          lastSegmentPathMeasure.setPath(lastSegmentPath, false);
+          lastSegmentPathMeasure.getPosTan(lastSegmentPathMeasure.getLength() * 0.9999f, lastSegmentPosition, null);
+          path.cubicTo(previousX - cp1x, previousY - cp1y, x + cp2x, y + cp2y,lastSegmentPosition[0], lastSegmentPosition[1]);
+        } else {
+          path.cubicTo(previousX - cp1x, previousY - cp1y, x + cp2x, y + cp2y, x, y);
+        }
       } else {
+        if (i == numPoints - 1) {
+          // When there is a huge stroke, it will flash if the path ends where it starts.
+          // The close() call should make the path effectively equivalent.
+          // https://github.com/airbnb/lottie-android/issues/2329
+          continue;
+        }
         path.lineTo(x, y);
       }
 
@@ -309,8 +344,7 @@ public class PolystarContent
       innerRadiusAnimation.setValueCallback((LottieValueCallback<Float>) callback);
     } else if (property == LottieProperty.POLYSTAR_OUTER_RADIUS) {
       outerRadiusAnimation.setValueCallback((LottieValueCallback<Float>) callback);
-    } else if (property == LottieProperty.POLYSTAR_INNER_ROUNDEDNESS &&
-        innerRoundednessAnimation != null) {
+    } else if (property == LottieProperty.POLYSTAR_INNER_ROUNDEDNESS && innerRoundednessAnimation != null) {
       innerRoundednessAnimation.setValueCallback((LottieValueCallback<Float>) callback);
     } else if (property == LottieProperty.POLYSTAR_OUTER_ROUNDEDNESS) {
       outerRoundednessAnimation.setValueCallback((LottieValueCallback<Float>) callback);

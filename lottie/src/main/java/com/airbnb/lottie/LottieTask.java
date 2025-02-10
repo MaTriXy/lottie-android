@@ -2,9 +2,12 @@ package com.airbnb.lottie;
 
 import android.os.Handler;
 import android.os.Looper;
+
 import androidx.annotation.Nullable;
 import androidx.annotation.RestrictTo;
-import android.util.Log;
+
+import com.airbnb.lottie.utils.Logger;
+import com.airbnb.lottie.utils.LottieThreadFactory;
 
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
@@ -20,27 +23,25 @@ import java.util.concurrent.FutureTask;
  * Helper to run asynchronous tasks with a result.
  * Results can be obtained with {@link #addListener(LottieListener)}.
  * Failures can be obtained with {@link #addFailureListener(LottieListener)}.
- *
+ * <p>
  * A task will produce a single result or a single failure.
  */
+@SuppressWarnings("UnusedReturnValue")
 public class LottieTask<T> {
 
   /**
    * Set this to change the executor that LottieTasks are run on. This will be the executor that composition parsing and url
    * fetching happens on.
-   *
+   * <p>
    * You may change this to run deserialization synchronously for testing.
    */
   @SuppressWarnings("WeakerAccess")
-  public static Executor EXECUTOR = Executors.newCachedThreadPool();
-
-  @Nullable private Thread taskObserver;
+  public static Executor EXECUTOR = Executors.newCachedThreadPool(new LottieThreadFactory());
 
   /* Preserve add order. */
   private final Set<LottieListener<T>> successListeners = new LinkedHashSet<>(1);
   private final Set<LottieListener<Throwable>> failureListeners = new LinkedHashSet<>(1);
   private final Handler handler = new Handler(Looper.getMainLooper());
-  private final FutureTask<LottieResult<T>> task;
 
   @Nullable private volatile LottieResult<T> result = null;
 
@@ -49,22 +50,22 @@ public class LottieTask<T> {
     this(runnable, false);
   }
 
+  public LottieTask(T result) {
+    setResult(new LottieResult<>(result));
+  }
+
   /**
    * runNow is only used for testing.
    */
-  @RestrictTo(RestrictTo.Scope.LIBRARY)
-  LottieTask(Callable<LottieResult<T>> runnable, boolean runNow) {
-    task = new FutureTask<>(runnable);
-
+  @RestrictTo(RestrictTo.Scope.LIBRARY) LottieTask(Callable<LottieResult<T>> runnable, boolean runNow) {
     if (runNow) {
       try {
         setResult(runnable.call());
       } catch (Throwable e) {
-        setResult(new LottieResult<T>(e));
+        setResult(new LottieResult<>(e));
       }
     } else {
-      EXECUTOR.execute(task);
-      startTaskObserverIfNeeded();
+      EXECUTOR.execute(new LottieFutureTask<T>(this, runnable));
     }
   }
 
@@ -78,74 +79,85 @@ public class LottieTask<T> {
 
   /**
    * Add a task listener. If the task has completed, the listener will be called synchronously.
+   *
    * @return the task for call chaining.
    */
   public synchronized LottieTask<T> addListener(LottieListener<T> listener) {
+    LottieResult<T> result = this.result;
     if (result != null && result.getValue() != null) {
       listener.onResult(result.getValue());
     }
 
     successListeners.add(listener);
-    startTaskObserverIfNeeded();
     return this;
   }
 
   /**
    * Remove a given task listener. The task will continue to execute so you can re-add
-   * a listener if neccesary.
+   * a listener if necessary.
+   *
    * @return the task for call chaining.
    */
   public synchronized LottieTask<T> removeListener(LottieListener<T> listener) {
     successListeners.remove(listener);
-    stopTaskObserverIfNeeded();
     return this;
   }
 
   /**
    * Add a task failure listener. This will only be called in the even that an exception
    * occurs. If an exception has already occurred, the listener will be called immediately.
+   *
    * @return the task for call chaining.
    */
   public synchronized LottieTask<T> addFailureListener(LottieListener<Throwable> listener) {
+    LottieResult<T> result = this.result;
     if (result != null && result.getException() != null) {
       listener.onResult(result.getException());
     }
 
     failureListeners.add(listener);
-    startTaskObserverIfNeeded();
     return this;
   }
 
   /**
    * Remove a given task failure listener. The task will continue to execute so you can re-add
-   * a listener if neccesary.
+   * a listener if necessary.
+   *
    * @return the task for call chaining.
    */
   public synchronized LottieTask<T> removeFailureListener(LottieListener<Throwable> listener) {
     failureListeners.remove(listener);
-    stopTaskObserverIfNeeded();
     return this;
+  }
+
+  @Nullable
+  public LottieResult<T> getResult() {
+    return result;
   }
 
   private void notifyListeners() {
     // Listeners should be called on the main thread.
-    handler.post(new Runnable() {
-      @Override public void run() {
-        if (result == null || task.isCancelled()) {
-          return;
-        }
-        // Local reference in case it gets set on a background thread.
-        LottieResult<T> result = LottieTask.this.result;
-        if (result.getValue() != null) {
-          notifySuccessListeners(result.getValue());
-        } else {
-          notifyFailureListeners(result.getException());
-        }
-      }
-    });
+    if (Looper.myLooper() == Looper.getMainLooper()) {
+      notifyListenersInternal();
+    } else {
+      handler.post(this::notifyListenersInternal);
+    }
   }
 
-  private void notifySuccessListeners(T value) {
+  private void notifyListenersInternal() {
+    // Local reference in case it gets set on a background thread.
+    LottieResult<T> result = LottieTask.this.result;
+    if (result == null) {
+      return;
+    }
+    if (result.getValue() != null) {
+      notifySuccessListeners(result.getValue());
+    } else {
+      notifyFailureListeners(result.getException());
+    }
+  }
+
+  private synchronized void notifySuccessListeners(T value) {
     // Allows listeners to remove themselves in onResult.
     // Otherwise we risk ConcurrentModificationException.
     List<LottieListener<T>> listenersCopy = new ArrayList<>(successListeners);
@@ -154,12 +166,12 @@ public class LottieTask<T> {
     }
   }
 
-  private void notifyFailureListeners(Throwable e) {
+  private synchronized void notifyFailureListeners(Throwable e) {
     // Allows listeners to remove themselves in onResult.
     // Otherwise we risk ConcurrentModificationException.
     List<LottieListener<Throwable>> listenersCopy = new ArrayList<>(failureListeners);
     if (listenersCopy.isEmpty()) {
-      Log.w(L.TAG, "Lottie encountered an error but no failure listener was added.", e);
+      Logger.warning("Lottie encountered an error but no failure listener was added:", e);
       return;
     }
 
@@ -168,53 +180,46 @@ public class LottieTask<T> {
     }
   }
 
-  /**
-   * We monitor the task with an observer thread to determine when it is done and should notify
-   * the appropriate listeners.
-   */
-  private synchronized void startTaskObserverIfNeeded() {
-    if (taskObserverAlive() || result != null) {
-      return;
-    }
-    taskObserver = new Thread("LottieTaskObserver") {
-      private boolean taskComplete = false;
+  private static class LottieFutureTask<T> extends FutureTask<LottieResult<T>> {
 
-      @Override public void run() {
-        while (true) {
-          if (isInterrupted() || taskComplete) {
-            return;
-          }
-          if (task.isDone()) {
-            try {
-              setResult(task.get());
-            } catch (InterruptedException | ExecutionException e) {
-              setResult(new LottieResult<T>(e));
-            }
-            taskComplete = true;
-            stopTaskObserverIfNeeded();
-          }
+    private LottieTask<T> lottieTask;
+
+    LottieFutureTask(LottieTask<T> task, Callable<LottieResult<T>> callable) {
+      super(callable);
+      lottieTask = task;
+    }
+
+    @Override
+    protected void done() {
+      try {
+        if (isCancelled()) {
+          // We don't need to notify and listeners if the task is cancelled.
+          return;
         }
+
+        try {
+          lottieTask.setResult(get());
+        } catch (InterruptedException | ExecutionException e) {
+          lottieTask.setResult(new LottieResult<>(e));
+        }
+      } finally {
+        // LottieFutureTask can be held in memory for up to 60 seconds after the task is done, which would
+        // result in holding on to the associated LottieTask instance and leaking its listeners. To avoid
+        // that, we clear our the reference to the LottieTask instance.
+        //
+        // How is LottieFutureTask held for up to 60 seconds? It's a bug in how the VM cleans up stack
+        // local variables. When you have a loop that polls a blocking queue and assigns the result
+        // to a local variable, after looping the local variable will still reference the previous value
+        // until the queue returns the next result.
+        //
+        // Executors.newCachedThreadPool() relies on a SynchronousQueue and creates a cached thread pool
+        // with a default keep alice of 60 seconds. After a given worker thread runs a task, that thread
+        // will wait for up to 60 seconds for a new task to come, and while waiting it's also accidentally
+        // keeping a reference to the previous task.
+        //
+        // See commit d577e728e9bccbafc707af3060ea914caa73c14f in AOSP for how that was fixed for Looper.
+        lottieTask = null;
       }
-    };
-    taskObserver.start();
-    L.debug("Starting TaskObserver thread");
-  }
-
-  /**
-   * We can stop observing the task if there are no more listeners or if the task is complete.
-   */
-  private synchronized void stopTaskObserverIfNeeded() {
-    if (!taskObserverAlive()) {
-      return;
     }
-    if (successListeners.isEmpty() || result != null) {
-      taskObserver.interrupt();
-      taskObserver = null;
-      L.debug("Stopping TaskObserver thread");
-    }
-  }
-
-  private boolean taskObserverAlive() {
-    return taskObserver != null && taskObserver.isAlive();
   }
 }

@@ -3,13 +3,16 @@ package com.airbnb.lottie.model.layer;
 import androidx.annotation.Nullable;
 
 import com.airbnb.lottie.LottieComposition;
-import com.airbnb.lottie.value.Keyframe;
 import com.airbnb.lottie.model.animatable.AnimatableFloatValue;
 import com.airbnb.lottie.model.animatable.AnimatableTextFrame;
 import com.airbnb.lottie.model.animatable.AnimatableTextProperties;
 import com.airbnb.lottie.model.animatable.AnimatableTransform;
+import com.airbnb.lottie.model.content.BlurEffect;
 import com.airbnb.lottie.model.content.ContentModel;
+import com.airbnb.lottie.model.content.LBlendMode;
 import com.airbnb.lottie.model.content.Mask;
+import com.airbnb.lottie.parser.DropShadowEffect;
+import com.airbnb.lottie.value.Keyframe;
 
 import java.util.List;
 import java.util.Locale;
@@ -17,20 +20,22 @@ import java.util.Locale;
 public class Layer {
 
   public enum LayerType {
-    PreComp,
-    Solid,
-    Image,
-    Null,
-    Shape,
-    Text,
-    Unknown
+    PRE_COMP,
+    SOLID,
+    IMAGE,
+    NULL,
+    SHAPE,
+    TEXT,
+    UNKNOWN
   }
 
   public enum MatteType {
-    None,
-    Add,
-    Invert,
-    Unknown
+    NONE,
+    ADD,
+    INVERT,
+    LUMA,
+    LUMA_INVERTED,
+    UNKNOWN
   }
 
   private final List<ContentModel> shapes;
@@ -47,21 +52,27 @@ public class Layer {
   private final int solidColor;
   private final float timeStretch;
   private final float startFrame;
-  private final int preCompWidth;
-  private final int preCompHeight;
+  private final float preCompWidth;
+  private final float preCompHeight;
   @Nullable private final AnimatableTextFrame text;
   @Nullable private final AnimatableTextProperties textProperties;
   @Nullable private final AnimatableFloatValue timeRemapping;
   private final List<Keyframe<Float>> inOutKeyframes;
   private final MatteType matteType;
+  private final boolean hidden;
+  @Nullable private final BlurEffect blurEffect;
+  @Nullable private final DropShadowEffect dropShadowEffect;
+  private final LBlendMode blendMode;
+
 
   public Layer(List<ContentModel> shapes, LottieComposition composition, String layerName, long layerId,
       LayerType layerType, long parentId, @Nullable String refId, List<Mask> masks,
       AnimatableTransform transform, int solidWidth, int solidHeight, int solidColor,
-      float timeStretch, float startFrame, int preCompWidth, int preCompHeight,
+      float timeStretch, float startFrame, float preCompWidth, float preCompHeight,
       @Nullable AnimatableTextFrame text, @Nullable AnimatableTextProperties textProperties,
       List<Keyframe<Float>> inOutKeyframes, MatteType matteType,
-      @Nullable AnimatableFloatValue timeRemapping) {
+      @Nullable AnimatableFloatValue timeRemapping, boolean hidden, @Nullable BlurEffect blurEffect,
+      @Nullable DropShadowEffect dropShadowEffect, LBlendMode blendMode) {
     this.shapes = shapes;
     this.composition = composition;
     this.layerName = layerName;
@@ -83,6 +94,10 @@ public class Layer {
     this.inOutKeyframes = inOutKeyframes;
     this.matteType = matteType;
     this.timeRemapping = timeRemapping;
+    this.hidden = hidden;
+    this.blurEffect = blurEffect;
+    this.dropShadowEffect = dropShadowEffect;
+    this.blendMode = blendMode;
   }
 
   LottieComposition getComposition() {
@@ -105,19 +120,19 @@ public class Layer {
     return layerId;
   }
 
-  String getName() {
+  public String getName() {
     return layerName;
   }
 
-  @Nullable String getRefId() {
+  public @Nullable String getRefId() {
     return refId;
   }
 
-  int getPreCompWidth() {
+  float getPreCompWidth() {
     return preCompWidth;
   }
 
-  int getPreCompHeight() {
+  float getPreCompHeight() {
     return preCompHeight;
   }
 
@@ -171,6 +186,23 @@ public class Layer {
 
   @Override public String toString() {
     return toString("");
+  }
+
+  public boolean isHidden() {
+    return hidden;
+  }
+
+  @Nullable
+  public LBlendMode getBlendMode() {
+    return blendMode;
+  }
+
+  @Nullable public BlurEffect getBlurEffect() {
+    return blurEffect;
+  }
+
+  @Nullable public DropShadowEffect getDropShadowEffect() {
+    return dropShadowEffect;
   }
 
   public String toString(String prefix) {

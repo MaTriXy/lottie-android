@@ -1,16 +1,28 @@
 package com.airbnb.lottie.parser;
 
-import android.util.JsonReader;
+
+import static com.airbnb.lottie.parser.moshi.JsonReader.Options;
 
 import com.airbnb.lottie.LottieComposition;
 import com.airbnb.lottie.model.animatable.AnimatableFloatValue;
 import com.airbnb.lottie.model.content.ShapeTrimPath;
+import com.airbnb.lottie.parser.moshi.JsonReader;
 
 import java.io.IOException;
 
 class ShapeTrimPathParser {
 
-  private ShapeTrimPathParser() {}
+  private ShapeTrimPathParser() {
+  }
+
+  private static final Options NAMES = Options.of(
+      "s",
+      "e",
+      "o",
+      "nm",
+      "m",
+      "hd"
+  );
 
   static ShapeTrimPath parse(
       JsonReader reader, LottieComposition composition) throws IOException {
@@ -19,29 +31,33 @@ class ShapeTrimPathParser {
     AnimatableFloatValue start = null;
     AnimatableFloatValue end = null;
     AnimatableFloatValue offset = null;
+    boolean hidden = false;
 
     while (reader.hasNext()) {
-      switch (reader.nextName()) {
-        case "s":
+      switch (reader.selectName(NAMES)) {
+        case 0:
           start = AnimatableValueParser.parseFloat(reader, composition, false);
           break;
-        case "e":
+        case 1:
           end = AnimatableValueParser.parseFloat(reader, composition, false);
           break;
-        case "o":
+        case 2:
           offset = AnimatableValueParser.parseFloat(reader, composition, false);
           break;
-        case "nm":
+        case 3:
           name = reader.nextString();
           break;
-        case "m":
+        case 4:
           type = ShapeTrimPath.Type.forId(reader.nextInt());
+          break;
+        case 5:
+          hidden = reader.nextBoolean();
           break;
         default:
           reader.skipValue();
       }
     }
 
-    return new ShapeTrimPath(name, type, start, end, offset);
+    return new ShapeTrimPath(name, type, start, end, offset, hidden);
   }
 }

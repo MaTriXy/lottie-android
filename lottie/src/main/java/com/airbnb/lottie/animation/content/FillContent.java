@@ -1,46 +1,62 @@
 package com.airbnb.lottie.animation.content;
 
+import static com.airbnb.lottie.utils.MiscUtils.clamp;
+
+import android.graphics.BlurMaskFilter;
 import android.graphics.Canvas;
 import android.graphics.ColorFilter;
 import android.graphics.Matrix;
 import android.graphics.Paint;
 import android.graphics.Path;
 import android.graphics.RectF;
+
 import androidx.annotation.Nullable;
 
 import com.airbnb.lottie.L;
 import com.airbnb.lottie.LottieDrawable;
 import com.airbnb.lottie.LottieProperty;
+import com.airbnb.lottie.animation.LPaint;
 import com.airbnb.lottie.animation.keyframe.BaseKeyframeAnimation;
+import com.airbnb.lottie.animation.keyframe.ColorKeyframeAnimation;
 import com.airbnb.lottie.animation.keyframe.ValueCallbackKeyframeAnimation;
 import com.airbnb.lottie.model.KeyPath;
 import com.airbnb.lottie.model.content.ShapeFill;
 import com.airbnb.lottie.model.layer.BaseLayer;
+import com.airbnb.lottie.utils.DropShadow;
 import com.airbnb.lottie.utils.MiscUtils;
 import com.airbnb.lottie.value.LottieValueCallback;
 
 import java.util.ArrayList;
 import java.util.List;
 
-import static com.airbnb.lottie.utils.MiscUtils.clamp;
-
 public class FillContent
     implements DrawingContent, BaseKeyframeAnimation.AnimationListener, KeyPathElementContent {
+
   private final Path path = new Path();
-  private final Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
+  private final Paint paint = new LPaint(Paint.ANTI_ALIAS_FLAG);
   private final BaseLayer layer;
   private final String name;
+  private final boolean hidden;
   private final List<PathContent> paths = new ArrayList<>();
   private final BaseKeyframeAnimation<Integer, Integer> colorAnimation;
   private final BaseKeyframeAnimation<Integer, Integer> opacityAnimation;
   @Nullable private BaseKeyframeAnimation<ColorFilter, ColorFilter> colorFilterAnimation;
   private final LottieDrawable lottieDrawable;
+  @Nullable private BaseKeyframeAnimation<Float, Float> blurAnimation;
+  float blurMaskFilterRadius;
 
   public FillContent(final LottieDrawable lottieDrawable, BaseLayer layer, ShapeFill fill) {
     this.layer = layer;
     name = fill.getName();
+    hidden = fill.isHidden();
     this.lottieDrawable = lottieDrawable;
-    if (fill.getColor() == null || fill.getOpacity() == null ) {
+    if (layer.getBlurEffect() != null) {
+      blurAnimation = layer.getBlurEffect().getBlurriness().createAnimation();
+      blurAnimation.addUpdateListener(this);
+      layer.addAnimation(blurAnimation);
+    }
+
+    if (fill.getColor() == null || fill.getOpacity() == null) {
       colorAnimation = null;
       opacityAnimation = null;
       return;
@@ -73,14 +89,37 @@ public class FillContent
     return name;
   }
 
-  @Override public void draw(Canvas canvas, Matrix parentMatrix, int parentAlpha) {
-    L.beginSection("FillContent#draw");
-    paint.setColor(colorAnimation.getValue());
-    int alpha = (int) ((parentAlpha / 255f * opacityAnimation.getValue() / 100f) * 255);
-    paint.setAlpha(clamp(alpha, 0, 255));
+  @Override public void draw(Canvas canvas, Matrix parentMatrix, int parentAlpha, @Nullable DropShadow shadowToApply) {
+    if (hidden) {
+      return;
+    }
+    if (L.isTraceEnabled()) {
+      L.beginSection("FillContent#draw");
+    }
+    int color = ((ColorKeyframeAnimation) this.colorAnimation).getIntValue();
+    float fillAlpha = opacityAnimation.getValue() / 100f;
+    int alpha = (int) (parentAlpha * fillAlpha);
+    alpha = clamp(alpha, 0, 255);
+    paint.setColor((alpha << 24) | (color & 0xFFFFFF));
 
     if (colorFilterAnimation != null) {
       paint.setColorFilter(colorFilterAnimation.getValue());
+    }
+
+    if (blurAnimation != null) {
+      float blurRadius = blurAnimation.getValue();
+      if (blurRadius == 0f) {
+        paint.setMaskFilter(null);
+      } else if (blurRadius != blurMaskFilterRadius) {
+        BlurMaskFilter blur = layer.getBlurMaskFilter(blurRadius);
+        paint.setMaskFilter(blur);
+      }
+      blurMaskFilterRadius = blurRadius;
+    }
+    if (shadowToApply != null) {
+      shadowToApply.applyWithAlpha((int)(fillAlpha * 255), paint);
+    } else {
+      paint.clearShadowLayer();
     }
 
     path.reset();
@@ -90,10 +129,12 @@ public class FillContent
 
     canvas.drawPath(path, paint);
 
-    L.endSection("FillContent#draw");
+    if (L.isTraceEnabled()) {
+      L.endSection("FillContent#draw");
+    }
   }
 
-  @Override public void getBounds(RectF outBounds, Matrix parentMatrix) {
+  @Override public void getBounds(RectF outBounds, Matrix parentMatrix, boolean applyParents) {
     path.reset();
     for (int i = 0; i < paths.size(); i++) {
       this.path.addPath(paths.get(i).getPath(), parentMatrix);
@@ -121,6 +162,10 @@ public class FillContent
     } else if (property == LottieProperty.OPACITY) {
       opacityAnimation.setValueCallback((LottieValueCallback<Integer>) callback);
     } else if (property == LottieProperty.COLOR_FILTER) {
+      if (colorFilterAnimation != null) {
+        layer.removeAnimation(colorFilterAnimation);
+      }
+
       if (callback == null) {
         colorFilterAnimation = null;
       } else {
@@ -128,6 +173,15 @@ public class FillContent
             new ValueCallbackKeyframeAnimation<>((LottieValueCallback<ColorFilter>) callback);
         colorFilterAnimation.addUpdateListener(this);
         layer.addAnimation(colorFilterAnimation);
+      }
+    } else if (property == LottieProperty.BLUR_RADIUS) {
+      if (blurAnimation != null) {
+        blurAnimation.setValueCallback((LottieValueCallback<Float>) callback);
+      } else {
+        blurAnimation =
+            new ValueCallbackKeyframeAnimation<>((LottieValueCallback<Float>) callback);
+        blurAnimation.addUpdateListener(this);
+        layer.addAnimation(blurAnimation);
       }
     }
   }

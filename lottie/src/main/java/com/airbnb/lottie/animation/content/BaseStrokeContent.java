@@ -1,5 +1,8 @@
 package com.airbnb.lottie.animation.content;
 
+import static com.airbnb.lottie.utils.MiscUtils.clamp;
+
+import android.graphics.BlurMaskFilter;
 import android.graphics.Canvas;
 import android.graphics.ColorFilter;
 import android.graphics.DashPathEffect;
@@ -8,27 +11,29 @@ import android.graphics.Paint;
 import android.graphics.Path;
 import android.graphics.PathMeasure;
 import android.graphics.RectF;
+
 import androidx.annotation.CallSuper;
 import androidx.annotation.Nullable;
 
 import com.airbnb.lottie.L;
 import com.airbnb.lottie.LottieDrawable;
 import com.airbnb.lottie.LottieProperty;
+import com.airbnb.lottie.animation.LPaint;
 import com.airbnb.lottie.animation.keyframe.BaseKeyframeAnimation;
+import com.airbnb.lottie.animation.keyframe.FloatKeyframeAnimation;
 import com.airbnb.lottie.animation.keyframe.ValueCallbackKeyframeAnimation;
 import com.airbnb.lottie.model.KeyPath;
 import com.airbnb.lottie.model.animatable.AnimatableFloatValue;
 import com.airbnb.lottie.model.animatable.AnimatableIntegerValue;
 import com.airbnb.lottie.model.content.ShapeTrimPath;
 import com.airbnb.lottie.model.layer.BaseLayer;
+import com.airbnb.lottie.utils.DropShadow;
 import com.airbnb.lottie.utils.MiscUtils;
 import com.airbnb.lottie.utils.Utils;
 import com.airbnb.lottie.value.LottieValueCallback;
 
 import java.util.ArrayList;
 import java.util.List;
-
-import static com.airbnb.lottie.utils.MiscUtils.clamp;
 
 public abstract class BaseStrokeContent
     implements BaseKeyframeAnimation.AnimationListener, KeyPathElementContent, DrawingContent {
@@ -38,16 +43,19 @@ public abstract class BaseStrokeContent
   private final Path trimPathPath = new Path();
   private final RectF rect = new RectF();
   private final LottieDrawable lottieDrawable;
-  private final BaseLayer layer;
+  protected final BaseLayer layer;
   private final List<PathGroup> pathGroups = new ArrayList<>();
   private final float[] dashPatternValues;
-  final Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
+  final Paint paint = new LPaint(Paint.ANTI_ALIAS_FLAG);
+
 
   private final BaseKeyframeAnimation<?, Float> widthAnimation;
   private final BaseKeyframeAnimation<?, Integer> opacityAnimation;
   private final List<BaseKeyframeAnimation<?, Float>> dashPatternAnimations;
   @Nullable private final BaseKeyframeAnimation<?, Float> dashPatternOffsetAnimation;
   @Nullable private BaseKeyframeAnimation<ColorFilter, ColorFilter> colorFilterAnimation;
+  @Nullable private BaseKeyframeAnimation<Float, Float> blurAnimation;
+  float blurMaskFilterRadius = 0f;
 
   BaseStrokeContent(final LottieDrawable lottieDrawable, BaseLayer layer, Paint.Cap cap,
       Paint.Join join, float miterLimit, AnimatableIntegerValue opacity, AnimatableFloatValue width,
@@ -93,6 +101,12 @@ public abstract class BaseStrokeContent
     if (dashPatternOffsetAnimation != null) {
       dashPatternOffsetAnimation.addUpdateListener(this);
     }
+
+    if (layer.getBlurEffect() != null) {
+      blurAnimation = layer.getBlurEffect().getBlurriness().createAnimation();
+      blurAnimation.addUpdateListener(this);
+      layer.addAnimation(blurAnimation);
+    }
   }
 
   @Override public void onValueChanged() {
@@ -104,7 +118,7 @@ public abstract class BaseStrokeContent
     for (int i = contentsBefore.size() - 1; i >= 0; i--) {
       Content content = contentsBefore.get(i);
       if (content instanceof TrimPathContent &&
-          ((TrimPathContent) content).getType() == ShapeTrimPath.Type.Individually) {
+          ((TrimPathContent) content).getType() == ShapeTrimPath.Type.INDIVIDUALLY) {
         trimPathContentBefore = (TrimPathContent) content;
       }
     }
@@ -116,7 +130,7 @@ public abstract class BaseStrokeContent
     for (int i = contentsAfter.size() - 1; i >= 0; i--) {
       Content content = contentsAfter.get(i);
       if (content instanceof TrimPathContent &&
-          ((TrimPathContent) content).getType() == ShapeTrimPath.Type.Individually) {
+          ((TrimPathContent) content).getType() == ShapeTrimPath.Type.INDIVIDUALLY) {
         if (currentPathGroup != null) {
           pathGroups.add(currentPathGroup);
         }
@@ -134,68 +148,119 @@ public abstract class BaseStrokeContent
     }
   }
 
-  @Override public void draw(Canvas canvas, Matrix parentMatrix, int parentAlpha) {
-    L.beginSection("StrokeContent#draw");
-    int alpha = (int) ((parentAlpha / 255f * opacityAnimation.getValue() / 100f) * 255);
-    paint.setAlpha(clamp(alpha, 0, 255));
-    paint.setStrokeWidth(widthAnimation.getValue() * Utils.getScale(parentMatrix));
-    if (paint.getStrokeWidth() <= 0) {
-      // Android draws a hairline stroke for 0, After Effects doesn't.
-      L.endSection("StrokeContent#draw");
+  @Override public void draw(Canvas canvas, Matrix parentMatrix, int parentAlpha, @Nullable DropShadow shadowToApply) {
+    if (L.isTraceEnabled()) {
+      L.beginSection("StrokeContent#draw");
+    }
+    if (Utils.hasZeroScaleAxis(parentMatrix)) {
+      if (L.isTraceEnabled()) {
+        L.endSection("StrokeContent#draw");
+      }
       return;
     }
-    applyDashPatternIfNeeded(parentMatrix);
+    float strokeAlpha = opacityAnimation.getValue() / 100f;
+    int alpha = (int) (parentAlpha * strokeAlpha);
+    alpha = clamp(alpha, 0, 255);
+    paint.setAlpha(alpha);
+    paint.setStrokeWidth(((FloatKeyframeAnimation) widthAnimation).getFloatValue());
+    if (paint.getStrokeWidth() <= 0) {
+      // Android draws a hairline stroke for 0, After Effects doesn't.
+      if (L.isTraceEnabled()) {
+        L.endSection("StrokeContent#draw");
+      }
+      return;
+    }
+    applyDashPatternIfNeeded();
 
     if (colorFilterAnimation != null) {
       paint.setColorFilter(colorFilterAnimation.getValue());
     }
 
+    if (blurAnimation != null) {
+      float blurRadius = blurAnimation.getValue();
+      if (blurRadius == 0f) {
+        paint.setMaskFilter(null);
+      } else if (blurRadius != blurMaskFilterRadius){
+        BlurMaskFilter blur = layer.getBlurMaskFilter(blurRadius);
+        paint.setMaskFilter(blur);
+      }
+      blurMaskFilterRadius = blurRadius;
+    }
+    if (shadowToApply != null) {
+      shadowToApply.applyWithAlpha((int)(strokeAlpha * 255), paint);
+    }
+
+    canvas.save();
+    canvas.concat(parentMatrix);
     for (int i = 0; i < pathGroups.size(); i++) {
       PathGroup pathGroup = pathGroups.get(i);
 
 
       if (pathGroup.trimPath != null) {
-        applyTrimPath(canvas, pathGroup, parentMatrix);
+        applyTrimPath(canvas, pathGroup);
       } else {
-        L.beginSection("StrokeContent#buildPath");
+        if (L.isTraceEnabled()) {
+          L.beginSection("StrokeContent#buildPath");
+        }
         path.reset();
         for (int j = pathGroup.paths.size() - 1; j >= 0; j--) {
-          path.addPath(pathGroup.paths.get(j).getPath(), parentMatrix);
+          path.addPath(pathGroup.paths.get(j).getPath());
         }
-        L.endSection("StrokeContent#buildPath");
-        L.beginSection("StrokeContent#drawPath");
+        if (L.isTraceEnabled()) {
+          L.endSection("StrokeContent#buildPath");
+          L.beginSection("StrokeContent#drawPath");
+        }
         canvas.drawPath(path, paint);
-        L.endSection("StrokeContent#drawPath");
+        if (L.isTraceEnabled()) {
+          L.endSection("StrokeContent#drawPath");
+        }
       }
     }
-    L.endSection("StrokeContent#draw");
+    canvas.restore();
+    if (L.isTraceEnabled()) {
+      L.endSection("StrokeContent#draw");
+    }
   }
 
-  private void applyTrimPath(Canvas canvas, PathGroup pathGroup, Matrix parentMatrix) {
-    L.beginSection("StrokeContent#applyTrimPath");
+  private void applyTrimPath(Canvas canvas, PathGroup pathGroup) {
+    if (L.isTraceEnabled()) {
+      L.beginSection("StrokeContent#applyTrimPath");
+    }
     if (pathGroup.trimPath == null) {
-      L.endSection("StrokeContent#applyTrimPath");
+      if (L.isTraceEnabled()) {
+        L.endSection("StrokeContent#applyTrimPath");
+      }
       return;
     }
     path.reset();
     for (int j = pathGroup.paths.size() - 1; j >= 0; j--) {
-      path.addPath(pathGroup.paths.get(j).getPath(), parentMatrix);
+      path.addPath(pathGroup.paths.get(j).getPath());
     }
+    float animStartValue = pathGroup.trimPath.getStart().getValue() / 100f;
+    float animEndValue = pathGroup.trimPath.getEnd().getValue() / 100f;
+    float animOffsetValue = pathGroup.trimPath.getOffset().getValue() / 360f;
+
+    // If the start-end is ~100, consider it to be the full path.
+    if (animStartValue < 0.01f && animEndValue > 0.99f) {
+      canvas.drawPath(path, paint);
+      if (L.isTraceEnabled()) {
+        L.endSection("StrokeContent#applyTrimPath");
+      }
+      return;
+    }
+
     pm.setPath(path, false);
     float totalLength = pm.getLength();
     while (pm.nextContour()) {
       totalLength += pm.getLength();
     }
-    float offsetLength = totalLength * pathGroup.trimPath.getOffset().getValue() / 360f;
-    float startLength =
-        totalLength * pathGroup.trimPath.getStart().getValue() / 100f + offsetLength;
-    float endLength =
-        totalLength * pathGroup.trimPath.getEnd().getValue() / 100f + offsetLength;
+    float offsetLength = totalLength * animOffsetValue;
+    float startLength = totalLength * animStartValue + offsetLength;
+    float endLength = Math.min(totalLength * animEndValue + offsetLength, startLength + totalLength - 1f);
 
     float currentLength = 0;
     for (int j = pathGroup.paths.size() - 1; j >= 0; j--) {
       trimPathPath.set(pathGroup.paths.get(j).getPath());
-      trimPathPath.transform(parentMatrix);
       pm.setPath(trimPathPath, false);
       float length = pm.getLength();
       if (endLength > totalLength && endLength - totalLength < currentLength + length &&
@@ -235,11 +300,15 @@ public abstract class BaseStrokeContent
         }
       currentLength += length;
     }
-    L.endSection("StrokeContent#applyTrimPath");
+    if (L.isTraceEnabled()) {
+      L.endSection("StrokeContent#applyTrimPath");
+    }
   }
 
-  @Override public void getBounds(RectF outBounds, Matrix parentMatrix) {
-    L.beginSection("StrokeContent#getBounds");
+  @Override public void getBounds(RectF outBounds, Matrix parentMatrix, boolean applyParents) {
+    if (L.isTraceEnabled()) {
+      L.beginSection("StrokeContent#getBounds");
+    }
     path.reset();
     for (int i = 0; i < pathGroups.size(); i++) {
       PathGroup pathGroup = pathGroups.get(i);
@@ -249,7 +318,7 @@ public abstract class BaseStrokeContent
     }
     path.computeBounds(rect, false);
 
-    float width = widthAnimation.getValue();
+    float width = ((FloatKeyframeAnimation) widthAnimation).getFloatValue();
     rect.set(rect.left - width / 2f, rect.top - width / 2f,
         rect.right + width / 2f, rect.bottom + width / 2f);
     outBounds.set(rect);
@@ -260,17 +329,22 @@ public abstract class BaseStrokeContent
         outBounds.right + 1,
         outBounds.bottom + 1
     );
-    L.endSection("StrokeContent#getBounds");
+    if (L.isTraceEnabled()) {
+      L.endSection("StrokeContent#getBounds");
+    }
   }
 
-  private void applyDashPatternIfNeeded(Matrix parentMatrix) {
-    L.beginSection("StrokeContent#applyDashPattern");
+  private void applyDashPatternIfNeeded() {
+    if (L.isTraceEnabled()) {
+      L.beginSection("StrokeContent#applyDashPattern");
+    }
     if (dashPatternAnimations.isEmpty()) {
-      L.endSection("StrokeContent#applyDashPattern");
+      if (L.isTraceEnabled()) {
+        L.endSection("StrokeContent#applyDashPattern");
+      }
       return;
     }
 
-    float scale = Utils.getScale(parentMatrix);
     for (int i = 0; i < dashPatternAnimations.size(); i++) {
       dashPatternValues[i] = dashPatternAnimations.get(i).getValue();
       // If the value of the dash pattern or gap is too small, the number of individual sections
@@ -286,11 +360,12 @@ public abstract class BaseStrokeContent
           dashPatternValues[i] = 0.1f;
         }
       }
-      dashPatternValues[i] *= scale;
     }
     float offset = dashPatternOffsetAnimation == null ? 0f : dashPatternOffsetAnimation.getValue();
     paint.setPathEffect(new DashPathEffect(dashPatternValues, offset));
-    L.endSection("StrokeContent#applyDashPattern");
+    if (L.isTraceEnabled()) {
+      L.endSection("StrokeContent#applyDashPattern");
+    }
   }
 
   @Override public void resolveKeyPath(
@@ -307,6 +382,10 @@ public abstract class BaseStrokeContent
     } else if (property == LottieProperty.STROKE_WIDTH) {
       widthAnimation.setValueCallback((LottieValueCallback<Float>) callback);
     } else if (property == LottieProperty.COLOR_FILTER) {
+      if (colorFilterAnimation != null) {
+        layer.removeAnimation(colorFilterAnimation);
+      }
+
       if (callback == null) {
         colorFilterAnimation = null;
       } else {
@@ -314,6 +393,15 @@ public abstract class BaseStrokeContent
             new ValueCallbackKeyframeAnimation<>((LottieValueCallback<ColorFilter>) callback);
         colorFilterAnimation.addUpdateListener(this);
         layer.addAnimation(colorFilterAnimation);
+      }
+    } else if (property == LottieProperty.BLUR_RADIUS) {
+      if (blurAnimation != null) {
+        blurAnimation.setValueCallback((LottieValueCallback<Float>) callback);
+      } else {
+        blurAnimation =
+            new ValueCallbackKeyframeAnimation<>((LottieValueCallback<Float>) callback);
+        blurAnimation.addUpdateListener(this);
+        layer.addAnimation(blurAnimation);
       }
     }
   }

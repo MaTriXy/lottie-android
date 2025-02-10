@@ -1,15 +1,18 @@
 package com.airbnb.lottie;
 
-import org.junit.Before;
 import org.junit.Ignore;
+import org.junit.Rule;
 import org.junit.Test;
 import org.mockito.Mock;
-import org.mockito.MockitoAnnotations;
+import org.mockito.junit.MockitoJUnit;
+import org.mockito.junit.MockitoRule;
 
 import java.util.concurrent.Callable;
 import java.util.concurrent.Semaphore;
 
-import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 
 public class LottieTaskTest extends BaseTest {
 
@@ -18,42 +21,34 @@ public class LottieTaskTest extends BaseTest {
   @Mock
   public LottieListener<Throwable> failureListener;
 
-  @Before
-  public void setup() {
-    MockitoAnnotations.initMocks(this);
-  }
+  @Rule
+  public MockitoRule rule = MockitoJUnit.rule();
 
   @Test
   public void testListener() {
-    LottieTask<Integer> task = new LottieTask<>(new Callable<LottieResult<Integer>>() {
-      @Override public LottieResult<Integer> call() {
-        return new LottieResult<>(5);
-      }
-    }, true)
+    new LottieTask<>(() -> new LottieResult<>(5), true)
         .addListener(successListener)
         .addFailureListener(failureListener);
     verify(successListener, times(1)).onResult(5);
-    verifyZeroInteractions(failureListener);
+    verifyNoInteractions(failureListener);
   }
 
   @Test
   public void testException() {
     final IllegalStateException exception = new IllegalStateException("foo");
-    LottieTask<Integer> task = new LottieTask<>(new Callable<LottieResult<Integer>>() {
-      @Override public LottieResult<Integer> call() {
-        throw exception;
-      }
+    new LottieTask<>((Callable<LottieResult<Integer>>) () -> {
+      throw exception;
     }, true)
         .addListener(successListener)
         .addFailureListener(failureListener);
-    verifyZeroInteractions(successListener);
+    verifyNoInteractions(successListener);
     verify(failureListener, times(1)).onResult(exception);
   }
 
   /**
    * This hangs on CI but not locally.
    */
-  @Ignore
+  @Ignore("hangs on ci")
   @Test
   public void testRemoveListener() {
     final Semaphore lock = new Semaphore(0);
@@ -75,8 +70,8 @@ public class LottieTaskTest extends BaseTest {
     } catch (InterruptedException e) {
       throw new IllegalStateException(e);
     }
-    verifyZeroInteractions(successListener);
-    verifyZeroInteractions(failureListener);
+    verifyNoInteractions(successListener);
+    verifyNoInteractions(failureListener);
   }
 
   @Test
@@ -90,6 +85,6 @@ public class LottieTaskTest extends BaseTest {
     task.addListener(successListener);
     task.addFailureListener(failureListener);
     verify(successListener, times(1)).onResult(5);
-    verifyZeroInteractions(failureListener);
+    verifyNoInteractions(failureListener);
   }
 }

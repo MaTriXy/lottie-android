@@ -1,19 +1,18 @@
 package com.airbnb.lottie.model;
 
+import static androidx.annotation.RestrictTo.Scope.LIBRARY;
+
 import androidx.annotation.RestrictTo;
 
 import com.airbnb.lottie.model.content.ShapeGroup;
 
 import java.util.List;
 
-import static androidx.annotation.RestrictTo.Scope.LIBRARY;
-
 @RestrictTo(LIBRARY)
 public class FontCharacter {
 
   public static int hashFor(char character, String fontFamily, String style) {
-    int result = 0;
-    result = 31 * result + (int) character;
+    int result = (int) character;
     result = 31 * result + fontFamily.hashCode();
     result = 31 * result + style.hashCode();
     return result;
@@ -40,16 +39,8 @@ public class FontCharacter {
     return shapes;
   }
 
-  double getSize() {
-    return size;
-  }
-
   public double getWidth() {
     return width;
-  }
-
-  String getStyle() {
-    return style;
   }
 
   @Override public int hashCode() {

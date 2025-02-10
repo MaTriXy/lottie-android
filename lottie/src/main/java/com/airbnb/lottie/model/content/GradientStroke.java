@@ -2,6 +2,7 @@ package com.airbnb.lottie.model.content;
 
 import androidx.annotation.Nullable;
 
+import com.airbnb.lottie.LottieComposition;
 import com.airbnb.lottie.LottieDrawable;
 import com.airbnb.lottie.animation.content.Content;
 import com.airbnb.lottie.animation.content.GradientStrokeContent;
@@ -27,6 +28,7 @@ public class GradientStroke implements ContentModel {
   private final float miterLimit;
   private final List<AnimatableFloatValue> lineDashPattern;
   @Nullable private final AnimatableFloatValue dashOffset;
+  private final boolean hidden;
 
   public GradientStroke(String name, GradientType gradientType,
       AnimatableGradientColorValue gradientColor,
@@ -34,7 +36,7 @@ public class GradientStroke implements ContentModel {
       AnimatablePointValue endPoint, AnimatableFloatValue width, ShapeStroke.LineCapType capType,
       ShapeStroke.LineJoinType joinType, float miterLimit,
       List<AnimatableFloatValue> lineDashPattern,
-      @Nullable AnimatableFloatValue dashOffset) {
+      @Nullable AnimatableFloatValue dashOffset, boolean hidden) {
     this.name = name;
     this.gradientType = gradientType;
     this.gradientColor = gradientColor;
@@ -47,6 +49,7 @@ public class GradientStroke implements ContentModel {
     this.miterLimit = miterLimit;
     this.lineDashPattern = lineDashPattern;
     this.dashOffset = dashOffset;
+    this.hidden = hidden;
   }
 
   public String getName() {
@@ -97,7 +100,11 @@ public class GradientStroke implements ContentModel {
     return miterLimit;
   }
 
-  @Override public Content toContent(LottieDrawable drawable, BaseLayer layer) {
+  public boolean isHidden() {
+    return hidden;
+  }
+
+  @Override public Content toContent(LottieDrawable drawable, LottieComposition composition, BaseLayer layer) {
     return new GradientStrokeContent(drawable, layer, this);
   }
 }

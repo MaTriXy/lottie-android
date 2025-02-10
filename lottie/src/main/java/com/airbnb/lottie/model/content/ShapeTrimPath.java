@@ -1,5 +1,6 @@
 package com.airbnb.lottie.model.content;
 
+import com.airbnb.lottie.LottieComposition;
 import com.airbnb.lottie.LottieDrawable;
 import com.airbnb.lottie.animation.content.Content;
 import com.airbnb.lottie.animation.content.TrimPathContent;
@@ -9,15 +10,15 @@ import com.airbnb.lottie.model.layer.BaseLayer;
 public class ShapeTrimPath implements ContentModel {
 
   public enum Type {
-    Simultaneously,
-    Individually;
+    SIMULTANEOUSLY,
+    INDIVIDUALLY;
 
     public static Type forId(int id) {
       switch (id) {
         case 1:
-          return Simultaneously;
+          return SIMULTANEOUSLY;
         case 2:
-          return Individually;
+          return INDIVIDUALLY;
         default:
           throw new IllegalArgumentException("Unknown trim path type " + id);
       }
@@ -29,14 +30,16 @@ public class ShapeTrimPath implements ContentModel {
   private final AnimatableFloatValue start;
   private final AnimatableFloatValue end;
   private final AnimatableFloatValue offset;
+  private final boolean hidden;
 
   public ShapeTrimPath(String name, Type type, AnimatableFloatValue start,
-      AnimatableFloatValue end, AnimatableFloatValue offset) {
+      AnimatableFloatValue end, AnimatableFloatValue offset, boolean hidden) {
     this.name = name;
     this.type = type;
     this.start = start;
     this.end = end;
     this.offset = offset;
+    this.hidden = hidden;
   }
 
   public String getName() {
@@ -59,7 +62,11 @@ public class ShapeTrimPath implements ContentModel {
     return offset;
   }
 
-  @Override public Content toContent(LottieDrawable drawable, BaseLayer layer) {
+  public boolean isHidden() {
+    return hidden;
+  }
+
+  @Override public Content toContent(LottieDrawable drawable, LottieComposition composition, BaseLayer layer) {
     return new TrimPathContent(layer, this);
   }
 

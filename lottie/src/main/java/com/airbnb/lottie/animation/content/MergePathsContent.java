@@ -31,7 +31,8 @@ public class MergePathsContent implements PathContent, GreedyContent {
   @Override public void absorbContent(ListIterator<Content> contents) {
     // Fast forward the iterator until after this content.
     //noinspection StatementWithEmptyBody
-    while (contents.hasPrevious() && contents.previous() != this) {}
+    while (contents.hasPrevious() && contents.previous() != this) {
+    }
     while (contents.hasPrevious()) {
       Content content = contents.previous();
       if (content instanceof PathContent) {
@@ -50,20 +51,24 @@ public class MergePathsContent implements PathContent, GreedyContent {
   @Override public Path getPath() {
     path.reset();
 
+    if (mergePaths.isHidden()) {
+      return path;
+    }
+
     switch (mergePaths.getMode()) {
-      case Merge:
+      case MERGE:
         addPaths();
         break;
-      case Add:
+      case ADD:
         opFirstPathWithRest(Path.Op.UNION);
         break;
-      case Subtract:
+      case SUBTRACT:
         opFirstPathWithRest(Path.Op.REVERSE_DIFFERENCE);
         break;
-      case Intersect:
+      case INTERSECT:
         opFirstPathWithRest(Path.Op.INTERSECT);
         break;
-      case ExcludeIntersections:
+      case EXCLUDE_INTERSECTIONS:
         opFirstPathWithRest(Path.Op.XOR);
         break;
     }

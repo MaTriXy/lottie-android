@@ -4,6 +4,7 @@ import android.graphics.Canvas;
 import android.graphics.Matrix;
 import android.graphics.Path;
 import android.graphics.RectF;
+
 import androidx.annotation.Nullable;
 
 import com.airbnb.lottie.LottieDrawable;
@@ -13,6 +14,7 @@ import com.airbnb.lottie.animation.keyframe.TransformKeyframeAnimation;
 import com.airbnb.lottie.model.KeyPath;
 import com.airbnb.lottie.model.content.Repeater;
 import com.airbnb.lottie.model.layer.BaseLayer;
+import com.airbnb.lottie.utils.DropShadow;
 import com.airbnb.lottie.utils.MiscUtils;
 import com.airbnb.lottie.value.LottieValueCallback;
 
@@ -29,6 +31,7 @@ public class RepeaterContent implements DrawingContent, PathContent, GreedyConte
   private final LottieDrawable lottieDrawable;
   private final BaseLayer layer;
   private final String name;
+  private final boolean hidden;
   private final BaseKeyframeAnimation<Float, Float> copies;
   private final BaseKeyframeAnimation<Float, Float> offset;
   private final TransformKeyframeAnimation transform;
@@ -39,6 +42,7 @@ public class RepeaterContent implements DrawingContent, PathContent, GreedyConte
     this.lottieDrawable = lottieDrawable;
     this.layer = layer;
     name = repeater.getName();
+    this.hidden = repeater.isHidden();
     copies = repeater.getCopies().createAnimation();
     layer.addAnimation(copies);
     copies.addUpdateListener(this);
@@ -71,14 +75,15 @@ public class RepeaterContent implements DrawingContent, PathContent, GreedyConte
     }
     // Fast forward the iterator until after this content.
     //noinspection StatementWithEmptyBody
-    while (contentsIter.hasPrevious() && contentsIter.previous() != this) {}
+    while (contentsIter.hasPrevious() && contentsIter.previous() != this) {
+    }
     List<Content> contents = new ArrayList<>();
     while (contentsIter.hasPrevious()) {
       contents.add(contentsIter.previous());
       contentsIter.remove();
     }
     Collections.reverse(contents);
-    contentGroup = new ContentGroup(lottieDrawable, layer, "Repeater", contents, null);
+    contentGroup = new ContentGroup(lottieDrawable, layer, "Repeater", hidden, contents, null);
   }
 
   @Override public String getName() {
@@ -101,7 +106,7 @@ public class RepeaterContent implements DrawingContent, PathContent, GreedyConte
     return path;
   }
 
-  @Override public void draw(Canvas canvas, Matrix parentMatrix, int alpha) {
+  @Override public void draw(Canvas canvas, Matrix parentMatrix, int alpha, @Nullable DropShadow shadowToApply) {
     float copies = this.copies.getValue();
     float offset = this.offset.getValue();
     //noinspection ConstantConditions
@@ -112,12 +117,14 @@ public class RepeaterContent implements DrawingContent, PathContent, GreedyConte
       matrix.set(parentMatrix);
       matrix.preConcat(transform.getMatrixForRepeater(i + offset));
       float newAlpha = alpha * MiscUtils.lerp(startOpacity, endOpacity, i / copies);
-      contentGroup.draw(canvas, matrix, (int) newAlpha);
+      // A repeater renders its contents as if by simple re-rendering, so it should be fine to pass shadowToApply
+      // here, even when we have more than 1 copy.
+      contentGroup.draw(canvas, matrix, (int) newAlpha, shadowToApply);
     }
   }
 
-  @Override public void getBounds(RectF outBounds, Matrix parentMatrix) {
-    contentGroup.getBounds(outBounds, parentMatrix);
+  @Override public void getBounds(RectF outBounds, Matrix parentMatrix, boolean applyParents) {
+    contentGroup.getBounds(outBounds, parentMatrix, applyParents);
   }
 
   @Override public void onValueChanged() {
@@ -127,6 +134,12 @@ public class RepeaterContent implements DrawingContent, PathContent, GreedyConte
   @Override public void resolveKeyPath(
       KeyPath keyPath, int depth, List<KeyPath> accumulator, KeyPath currentPartialKeyPath) {
     MiscUtils.resolveKeyPath(keyPath, depth, accumulator, currentPartialKeyPath, this);
+    for (int i = 0; i < contentGroup.getContents().size(); i++) {
+      Content content = contentGroup.getContents().get(i);
+      if (content instanceof KeyPathElementContent) {
+        MiscUtils.resolveKeyPath(keyPath, depth, accumulator, currentPartialKeyPath, (KeyPathElementContent) content);
+      }
+    }
   }
 
   @SuppressWarnings("unchecked")

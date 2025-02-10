@@ -1,8 +1,10 @@
 package com.airbnb.lottie.model.content;
 
 import android.graphics.Path;
+
 import androidx.annotation.Nullable;
 
+import com.airbnb.lottie.LottieComposition;
 import com.airbnb.lottie.LottieDrawable;
 import com.airbnb.lottie.animation.content.Content;
 import com.airbnb.lottie.animation.content.GradientFillContent;
@@ -23,12 +25,13 @@ public class GradientFill implements ContentModel {
   private final String name;
   @Nullable private final AnimatableFloatValue highlightLength;
   @Nullable private final AnimatableFloatValue highlightAngle;
+  private final boolean hidden;
 
   public GradientFill(String name, GradientType gradientType, Path.FillType fillType,
       AnimatableGradientColorValue gradientColor,
       AnimatableIntegerValue opacity, AnimatablePointValue startPoint,
       AnimatablePointValue endPoint, AnimatableFloatValue highlightLength,
-      AnimatableFloatValue highlightAngle) {
+      AnimatableFloatValue highlightAngle, boolean hidden) {
     this.gradientType = gradientType;
     this.fillType = fillType;
     this.gradientColor = gradientColor;
@@ -38,6 +41,7 @@ public class GradientFill implements ContentModel {
     this.name = name;
     this.highlightLength = highlightLength;
     this.highlightAngle = highlightAngle;
+    this.hidden = hidden;
   }
 
   public String getName() {
@@ -68,16 +72,12 @@ public class GradientFill implements ContentModel {
     return endPoint;
   }
 
-  @Nullable AnimatableFloatValue getHighlightLength() {
-    return highlightLength;
+  public boolean isHidden() {
+    return hidden;
   }
 
-  @Nullable AnimatableFloatValue getHighlightAngle() {
-    return highlightAngle;
-  }
-
-  @Override public Content toContent(LottieDrawable drawable, BaseLayer layer) {
-    return new GradientFillContent(drawable, layer, this);
+  @Override public Content toContent(LottieDrawable drawable, LottieComposition composition, BaseLayer layer) {
+    return new GradientFillContent(drawable, composition, layer, this);
   }
 
 }

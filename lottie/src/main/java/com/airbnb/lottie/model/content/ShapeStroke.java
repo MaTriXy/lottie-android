@@ -1,8 +1,10 @@
 package com.airbnb.lottie.model.content;
 
 import android.graphics.Paint;
+
 import androidx.annotation.Nullable;
 
+import com.airbnb.lottie.LottieComposition;
 import com.airbnb.lottie.LottieDrawable;
 import com.airbnb.lottie.animation.content.Content;
 import com.airbnb.lottie.animation.content.StrokeContent;
@@ -15,17 +17,17 @@ import java.util.List;
 
 public class ShapeStroke implements ContentModel {
   public enum LineCapType {
-    Butt,
-    Round,
-    Unknown;
+    BUTT,
+    ROUND,
+    UNKNOWN;
 
     public Paint.Cap toPaintCap() {
       switch (this) {
-        case Butt:
+        case BUTT:
           return Paint.Cap.BUTT;
-        case Round:
+        case ROUND:
           return Paint.Cap.ROUND;
-        case Unknown:
+        case UNKNOWN:
         default:
           return Paint.Cap.SQUARE;
       }
@@ -33,17 +35,17 @@ public class ShapeStroke implements ContentModel {
   }
 
   public enum LineJoinType {
-    Miter,
-    Round,
-    Bevel;
+    MITER,
+    ROUND,
+    BEVEL;
 
     public Paint.Join toPaintJoin() {
       switch (this) {
-        case Bevel:
+        case BEVEL:
           return Paint.Join.BEVEL;
-        case Miter:
+        case MITER:
           return Paint.Join.MITER;
-        case Round:
+        case ROUND:
           return Paint.Join.ROUND;
       }
       return null;
@@ -59,11 +61,12 @@ public class ShapeStroke implements ContentModel {
   private final LineCapType capType;
   private final LineJoinType joinType;
   private final float miterLimit;
+  private final boolean hidden;
 
   public ShapeStroke(String name, @Nullable AnimatableFloatValue offset,
       List<AnimatableFloatValue> lineDashPattern, AnimatableColorValue color,
       AnimatableIntegerValue opacity, AnimatableFloatValue width, LineCapType capType,
-      LineJoinType joinType, float miterLimit) {
+      LineJoinType joinType, float miterLimit, boolean hidden) {
     this.name = name;
     this.offset = offset;
     this.lineDashPattern = lineDashPattern;
@@ -73,9 +76,10 @@ public class ShapeStroke implements ContentModel {
     this.capType = capType;
     this.joinType = joinType;
     this.miterLimit = miterLimit;
+    this.hidden = hidden;
   }
 
-  @Override public Content toContent(LottieDrawable drawable, BaseLayer layer) {
+  @Override public Content toContent(LottieDrawable drawable, LottieComposition composition, BaseLayer layer) {
     return new StrokeContent(drawable, layer, this);
   }
 
@@ -113,5 +117,9 @@ public class ShapeStroke implements ContentModel {
 
   public float getMiterLimit() {
     return miterLimit;
+  }
+
+  public boolean isHidden() {
+    return hidden;
   }
 }

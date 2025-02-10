@@ -2,26 +2,28 @@ package com.airbnb.lottie.model.content;
 
 import android.graphics.PointF;
 
+import com.airbnb.lottie.LottieComposition;
 import com.airbnb.lottie.LottieDrawable;
 import com.airbnb.lottie.animation.content.Content;
 import com.airbnb.lottie.animation.content.RectangleContent;
 import com.airbnb.lottie.model.animatable.AnimatableFloatValue;
-import com.airbnb.lottie.model.animatable.AnimatablePointValue;
 import com.airbnb.lottie.model.animatable.AnimatableValue;
 import com.airbnb.lottie.model.layer.BaseLayer;
 
 public class RectangleShape implements ContentModel {
   private final String name;
   private final AnimatableValue<PointF, PointF> position;
-  private final AnimatablePointValue size;
+  private final AnimatableValue<PointF, PointF> size;
   private final AnimatableFloatValue cornerRadius;
+  private final boolean hidden;
 
   public RectangleShape(String name, AnimatableValue<PointF, PointF> position,
-      AnimatablePointValue size, AnimatableFloatValue cornerRadius) {
+      AnimatableValue<PointF, PointF> size, AnimatableFloatValue cornerRadius, boolean hidden) {
     this.name = name;
     this.position = position;
     this.size = size;
     this.cornerRadius = cornerRadius;
+    this.hidden = hidden;
   }
 
   public String getName() {
@@ -32,7 +34,7 @@ public class RectangleShape implements ContentModel {
     return cornerRadius;
   }
 
-  public AnimatablePointValue getSize() {
+  public AnimatableValue<PointF, PointF> getSize() {
     return size;
   }
 
@@ -40,7 +42,11 @@ public class RectangleShape implements ContentModel {
     return position;
   }
 
-  @Override public Content toContent(LottieDrawable drawable, BaseLayer layer) {
+  public boolean isHidden() {
+    return hidden;
+  }
+
+  @Override public Content toContent(LottieDrawable drawable, LottieComposition composition, BaseLayer layer) {
     return new RectangleContent(drawable, layer, this);
   }
 
